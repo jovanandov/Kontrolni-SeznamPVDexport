@@ -1,6 +1,58 @@
-# KSZ - Kontrolni Seznam Zgodovine
+# Kontrolni seznam - Vite + Django
 
-Aplikacija za upravljanje s kontrolnimi seznami zgodovine.
+## Opis projekta
+Aplikacija za upravljanje kontrolnih seznamov, razvita z uporabo Vite (React) za frontend in Django REST Framework za backend.
+
+## Tehnološki sklad
+### Frontend
+- React.js
+- Material-UI
+- React Router
+- Axios
+- TypeScript
+
+### Backend
+- Django REST Framework
+- SQLite
+- Django ORM
+
+## Implementirane funkcionalnosti
+- Avtentikacija in avtorizacija
+  - Prijava/odjava
+  - Registracija novih uporabnikov
+  - Zaščita poti
+- Uporabniški vmesnik
+  - Prijavna stran
+  - Registracijska stran
+  - Navigacijska vrstica
+  - Osnovna struktura aplikacije
+
+## Namestitev in zagon
+1. Backend:
+   ```bash
+   cd backend
+   python3 manage.py migrate
+   python3 manage.py runserver 0.0.0.0:8000
+   ```
+
+2. Frontend:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+## Dostop
+- Frontend: http://localhost:5173
+- Backend: http://localhost:8000
+
+## Razvojni status
+- ✅ Osnovna struktura projekta
+- ✅ Avtentikacija in avtorizacija
+- ✅ Uporabniški vmesnik
+- ⏳ Implementacija kontrolnih seznamov
+- ⏳ Upravljanje projektov
+- ⏳ Nastavitve uporabnika
 
 ## Trenutno stanje projekta
 
@@ -25,23 +77,39 @@ Aplikacija za upravljanje s kontrolnimi seznami zgodovine.
   - ✅ Checklist.tsx
   - ✅ Settings.tsx
   - ✅ Login.tsx
+  - ✅ Register.tsx
 - ✅ Implementirana navigacija
 - ✅ Implementirano zaščiteno območje
 - ✅ Implementirana avtentikacija
+- ✅ Implementirana registracija
 - ✅ Implementirane API klice
 
-## Tehnološki sklad
-
-### Frontend
-- React.js
-- Material-UI
-- React Router
-- Axios
+## 🚀 Zagon aplikacije
 
 ### Backend
-- Django REST Framework
-- SQLite
-- Django ORM
+```bash
+cd backend
+python3 manage.py runserver 0.0.0.0:8000
+```
+Backend bo dostopen na http://0.0.0.0:8000/
+
+### Frontend
+```bash
+cd frontend
+npm run dev
+```
+Frontend bo dostopen na http://localhost:5173/
+
+### Opombe
+- Na Linux sistemih je potrebno uporabiti `python3` namesto `python`
+- Backend in frontend je potrebno zagnati v ločenih terminalih
+- Za pravilno delovanje morata biti zagnana oba dela aplikacije
+
+### Privzeti uporabniki
+- Administrator:
+  - Uporabniško ime: `admin`
+  - Geslo: `AdmiNNimdAtec`
+- Navadni uporabniki se lahko registrirajo preko obrazca za registracijo
 
 ## Struktura projekta
 
@@ -470,6 +538,26 @@ CREATE TABLE log_sprememb (
   - Optimiziran za delovanje brez povezave
   - Indikator stanja povezave
   - Možnost ročne sinhronizacije
+
+## 📊 Sledenje spremembam
+
+Projekt uporablja Git za sledenje spremembam. Glavna veja je `main`.
+
+### Git Workflow
+- Vse spremembe se commitajo direktno v `main` vejo
+- Vsak commit mora imeti jasen opis sprememb
+- Spremembe se beležijo v TRACK.md
+
+### .gitignore
+Projekt vključuje .gitignore datoteko, ki izključuje:
+- Python datoteke (__pycache__, virtualne okolja, itd.)
+- Node.js datoteke (node_modules, logi, itd.)
+- IDE datoteke (.idea, .vscode)
+- Django datoteke (db.sqlite3, logi)
+- Sistemske datoteke (.DS_Store, Thumbs.db)
+
+### Commit History
+Zgodovina sprememb je dostopna v TRACK.md datoteki, ki beleži vse pomembne spremembe v projektu.
 
 
 ---

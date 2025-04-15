@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     TipViewSet, ProjektViewSet, SegmentViewSet, VprasanjeViewSet,
     SerijskaStevilkaViewSet, OdgovorViewSet, NastavitevViewSet,
-    ProfilViewSet, LogSpremembViewSet, LoginView, LogoutView
+    ProfilViewSet, LogSpremembViewSet, LoginView, LogoutView, RegisterView, CsrfView, UserView
 )
 
 router = DefaultRouter()
@@ -21,4 +21,7 @@ urlpatterns = [
     path('', include(router.urls)),
     path('auth/login/', LoginView.as_view(), name='login'),
     path('auth/logout/', LogoutView.as_view(), name='logout'),
+    path('auth/register/', RegisterView.as_view(), name='register'),
+    path('auth/csrf/', CsrfView.as_view(), name='csrf'),
+    path('auth/user/', UserView.as_view(), name='user'),
 ] 

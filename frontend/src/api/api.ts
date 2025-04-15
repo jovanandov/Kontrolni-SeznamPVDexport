@@ -2,6 +2,23 @@ import axios from 'axios';
 
 const API_URL = 'http://localhost:8000/api';
 
+// Funkcija za pridobivanje CSRF tokena
+const getCsrfToken = (): string | null => {
+  const name = 'csrftoken';
+  let cookieValue: string | null = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+};
+
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -10,11 +27,27 @@ const api = axios.create({
   withCredentials: true,
 });
 
+// Začetni klic za pridobivanje CSRF tokena
+const initializeCsrf = async () => {
+  try {
+    await api.get('/auth/csrf/');
+    console.log('CSRF token pridobljen');
+  } catch (error) {
+    console.error('Napaka pri pridobivanju CSRF tokena:', error);
+  }
+};
+
+// Inicializacija CSRF tokena
+initializeCsrf();
+
 // Interceptor za dodajanje CSRF tokena
-api.interceptors.request.use((config) => {
-  const csrfToken = document.cookie.split('; ')
-    .find(row => row.startsWith('csrftoken='))
-    ?.split('=')[1];
+api.interceptors.request.use(async (config) => {
+  let csrfToken = getCsrfToken();
+  if (!csrfToken) {
+    // Če CSRF token ne obstaja, ga pridobimo
+    await initializeCsrf();
+    csrfToken = getCsrfToken();
+  }
   if (csrfToken) {
     config.headers['X-CSRFToken'] = csrfToken;
   }
@@ -34,10 +67,26 @@ api.interceptors.response.use(
 );
 
 // Avtentikacijski API klice
-export const login = (credentials: { username: string; password: string }) =>
-  api.post('/auth/login/', credentials);
+export const login = async (credentials: { osebna_stevilka: string; password: string }) => {
+  try {
+    const response = await api.post('/auth/login/', credentials);
+    console.log('Login API odgovor:', response);
+    return response.data;
+  } catch (error: any) {
+    console.error('Login API napaka:', error.response?.data);
+    throw error;
+  }
+};
 
-export const logout = () => api.post('/auth/logout/');
+export const logout = async () => {
+  try {
+    const response = await api.post('/auth/logout/');
+    return response.data;
+  } catch (error) {
+    console.error('Logout API napaka:', error);
+    throw error;
+  }
+};
 
 // Tipi API klice
 export const getTipi = () => api.get('/tipi/');
@@ -86,5 +135,21 @@ export const getLogSprememb = () => api.get('/log-sprememb/');
 export const createBackup = () => api.post('/backups/');
 export const restoreBackup = (id: number) => api.post(`/backups/${id}/restore/`);
 export const deleteBackup = (id: number) => api.delete(`/backups/${id}/`);
+
+export const register = async (data: {
+  osebna_stevilka: string;
+  password: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+}) => {
+  const response = await axios.post(`${API_URL}/auth/register/`, data);
+  return response.data;
+};
+
+export const getUser = async () => {
+  const response = await api.get('/auth/user/');
+  return response.data;
+};
 
 export default api; 

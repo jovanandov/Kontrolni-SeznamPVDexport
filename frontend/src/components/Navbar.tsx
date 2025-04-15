@@ -21,7 +21,7 @@ import {
   Settings as SettingsIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 const Navbar: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -51,7 +51,7 @@ const Navbar: React.FC = () => {
           <ListItemIcon>
             <HomeIcon />
           </ListItemIcon>
-          <ListItemText primary="Začetek" />
+          <ListItemText primary="Domov" />
         </ListItem>
         <ListItem button onClick={() => navigate('/settings')}>
           <ListItemIcon>
@@ -59,9 +59,7 @@ const Navbar: React.FC = () => {
           </ListItemIcon>
           <ListItemText primary="Nastavitve" />
         </ListItem>
-      </List>
-      <Divider />
-      <List>
+        <Divider />
         <ListItem button onClick={handleLogout}>
           <ListItemIcon>
             <LogoutIcon />
@@ -73,20 +71,20 @@ const Navbar: React.FC = () => {
   );
 
   return (
-    <>
-      <AppBar position="fixed">
+    <Box sx={{ display: 'flex' }}>
+      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <Toolbar>
           <IconButton
             color="inherit"
             aria-label="open drawer"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2 }}
+            sx={{ mr: 2, display: { sm: 'none' } }}
           >
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div">
-            Kontrolni Seznam Zgodovine
+            Kontrolni seznam
           </Typography>
         </Toolbar>
       </AppBar>
@@ -95,25 +93,32 @@ const Navbar: React.FC = () => {
         sx={{ width: { sm: 250 }, flexShrink: { sm: 0 } }}
       >
         <Drawer
-          variant={isMobile ? 'temporary' : 'permanent'}
+          variant="temporary"
           open={mobileOpen}
           onClose={handleDrawerToggle}
           ModalProps={{
-            keepMounted: true,
+            keepMounted: true, // Better open performance on mobile.
           }}
           sx={{
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: 250,
-            },
+            display: { xs: 'block', sm: 'none' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: 250 },
           }}
         >
           {drawer}
         </Drawer>
+        <Drawer
+          variant="permanent"
+          sx={{
+            display: { xs: 'none', sm: 'block' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: 250 },
+          }}
+          open
+        >
+          {drawer}
+        </Drawer>
       </Box>
-    </>
+    </Box>
   );
 };
 
-export default Navbar; 
 export default Navbar; 

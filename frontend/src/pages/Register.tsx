@@ -11,11 +11,14 @@ import {
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 
-const Login: React.FC = () => {
+const Register: React.FC = () => {
   const [osebna_stevilka, setOsebnaStevilka] = useState('');
   const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [ime, setIme] = useState('');
+  const [priimek, setPriimek] = useState('');
   const [error, setError] = useState('');
-  const { login } = useAuth();
+  const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,12 +26,18 @@ const Login: React.FC = () => {
     setError('');
 
     try {
-      const success = await login(osebna_stevilka, password);
-      if (!success) {
-        setError('Neveljavna osebna številka ali geslo');
+      const success = await register({
+        osebna_stevilka,
+        password,
+        email,
+        first_name: ime,
+        last_name: priimek
+      });
+      if (success) {
+        navigate('/login');
       }
     } catch (err) {
-      setError('Prišlo je do napake pri prijavi');
+      setError('Prišlo je do napake pri registraciji');
     }
   };
 
@@ -51,7 +60,7 @@ const Login: React.FC = () => {
         }}
       >
         <Typography variant="h4" component="h1" gutterBottom align="center">
-          Prijava
+          Registracija
         </Typography>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -80,20 +89,48 @@ const Login: React.FC = () => {
               />
             </Grid>
             <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="E-pošta"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Ime"
+                value={ime}
+                onChange={(e) => setIme(e.target.value)}
+                required
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Priimek"
+                value={priimek}
+                onChange={(e) => setPriimek(e.target.value)}
+                required
+              />
+            </Grid>
+            <Grid item xs={12}>
               <Button
                 fullWidth
                 variant="contained"
                 type="submit"
                 size="large"
               >
-                Prijava
+                Registracija
               </Button>
             </Grid>
             <Grid item xs={12}>
               <Typography align="center">
-                Še nimate računa?{' '}
-                <Link to="/register">
-                  <Button variant="text">Registracija</Button>
+                Že imate račun?{' '}
+                <Link to="/login">
+                  <Button variant="text">Prijava</Button>
                 </Link>
               </Typography>
             </Grid>
@@ -104,4 +141,4 @@ const Login: React.FC = () => {
   );
 };
 
-export default Login; 
+export default Register; 

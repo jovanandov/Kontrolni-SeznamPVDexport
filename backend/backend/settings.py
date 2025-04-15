@@ -167,10 +167,16 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
+# CSRF settings
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+CSRF_COOKIE_SECURE = False  # Za razvojno okolje
+CSRF_COOKIE_HTTPONLY = False  # Za razvojno okolje
+CSRF_COOKIE_SAMESITE = 'Lax'
+
 # Session settings
-SESSION_COOKIE_SECURE = False  # True v produkciji
+SESSION_COOKIE_SECURE = False  # Za razvojno okolje
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SECURE = False  # True v produkciji
-CSRF_COOKIE_HTTPONLY = True
-CSRF_COOKIE_SAMESITE = 'Lax'
