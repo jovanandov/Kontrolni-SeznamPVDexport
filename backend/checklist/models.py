@@ -4,14 +4,16 @@ from django.contrib.auth.models import User
 # Create your models here.
 
 class Tip(models.Model):
-    id = models.AutoField(primary_key=True)
     naziv = models.CharField(max_length=100)
-    segmenti = models.IntegerField(default=1)
+    nastavitve_segmentov = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.naziv} ({self.segmenti} segmentov)"
+        return self.naziv
+
+    class Meta:
+        verbose_name_plural = "tipi"
 
 class Projekt(models.Model):
     id = models.CharField(max_length=50, primary_key=True)
@@ -28,12 +30,12 @@ class Projekt(models.Model):
 class Segment(models.Model):
     id = models.AutoField(primary_key=True)
     naziv = models.CharField(max_length=200)
-    projekt = models.ForeignKey(Projekt, related_name='segmenti', on_delete=models.CASCADE)
+    tip = models.ForeignKey(Tip, related_name='tip_segmenti', on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.naziv} - {self.projekt.id}"
+        return f"{self.naziv} - {self.tip.naziv}"
 
 class Vprasanje(models.Model):
     TIPI_VPRASANJ = [
@@ -47,6 +49,9 @@ class Vprasanje(models.Model):
     vprasanje = models.TextField()
     tip = models.CharField(max_length=20, choices=TIPI_VPRASANJ)
     repeatability = models.BooleanField(default=False)
+    obvezno = models.BooleanField(default=True)
+    opis = models.TextField(blank=True)
+    moznosti = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

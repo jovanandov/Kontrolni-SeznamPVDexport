@@ -3,6 +3,7 @@ from .models import (
     Tip, Projekt, Segment, Vprasanje, SerijskaStevilka,
     Odgovor, Nastavitev, Profil, LogSprememb
 )
+from django.contrib.auth.models import User
 
 class TipSerializer(serializers.ModelSerializer):
     class Meta:
@@ -47,4 +48,10 @@ class ProfilSerializer(serializers.ModelSerializer):
 class LogSpremembSerializer(serializers.ModelSerializer):
     class Meta:
         model = LogSprememb
-        fields = '__all__' 
+        fields = '__all__'
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'is_staff', 'is_superuser']
+        read_only_fields = ['username', 'email'] 
