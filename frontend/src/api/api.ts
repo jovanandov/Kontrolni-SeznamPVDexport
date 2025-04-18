@@ -1,4 +1,7 @@
 import axios, { AxiosResponse } from 'axios';
+import DownloadIcon from '@mui/icons-material/Download';
+import UploadIcon from '@mui/icons-material/Upload';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const API_URL = 'http://192.168.1.186:8000/api';
 
@@ -129,6 +132,7 @@ export const deleteTip = async (id: number): Promise<void> => {
 
 // Projekti
 export interface ProjektTip {
+  id?: number;
   tip: number;
   stevilo_ponovitev: number;
 }
@@ -146,47 +150,22 @@ export const getProjekti = async (): Promise<any[]> => {
 };
 
 export const getProjekt = async (projektId: string): Promise<Projekt> => {
-  try {
-    const response = await axiosInstance.get(`/projekti/${projektId}/`);
-    return response.data;
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 404) {
-      // Če projekt ne obstaja, ga ustvarimo
-      const novProjekt = await createProjekt({
-        id: projektId,
-        osebna_stevilka: localStorage.getItem('osebna_stevilka') || '1',
-        datum: new Date().toISOString().split('T')[0],
-        projekt_tipi: [{
-          tip: 1,
-          stevilo_ponovitev: 1
-        }]
-      });
-      return novProjekt;
-    }
-    throw error;
-  }
+  const response = await axiosInstance.get(`/projekti/${projektId}/`);
+  return response.data;
 };
 
 export const createProjekt = async (data: Projekt): Promise<Projekt> => {
-  // Najprej ustvarimo projekt
+  // Ustvarimo projekt
   const response = await axiosInstance.post('/projekti/', {
     id: data.id,
     osebna_stevilka: data.osebna_stevilka,
-    datum: data.datum
+    datum: new Date(data.datum).toISOString().split('T')[0],
+    tip: data.projekt_tipi?.[0]?.tip,
+    stevilo_ponovitev: data.projekt_tipi?.[0]?.stevilo_ponovitev || 1
   });
 
-  // Nato dodamo še ProjektTip
-  if (data.projekt_tipi?.[0]) {
-    await axiosInstance.post('/projekt-tipi/', {
-      projekt: data.id,
-      tip: data.projekt_tipi[0].tip,
-      stevilo_ponovitev: data.projekt_tipi[0].stevilo_ponovitev
-    });
-  }
-
-  // Vrnemo celoten projekt
-  const projektResponse = await axiosInstance.get(`/projekti/${data.id}/`);
-  return projektResponse.data;
+  // Serijske številke se ustvarijo avtomatsko na backendu
+  return response.data;
 };
 
 export const updateProjekt = async (id: number, data: any): Promise<any> => {
@@ -222,6 +201,7 @@ export interface SerijskaStevilka {
   stevilka: string;
   tip: number;
   projekt_tip: number;
+  created_at: string;
 }
 
 export const getSerijskeStevilke = async (projektId: string): Promise<SerijskaStevilka[]> => {
@@ -230,12 +210,19 @@ export const getSerijskeStevilke = async (projektId: string): Promise<SerijskaSt
 };
 
 export const createSerijskaStevilka = async (projektId: string, tipId: number, index: number): Promise<SerijskaStevilka> => {
+  // Najprej pridobimo ProjektTip ID
+  const projekt = await getProjekt(projektId);
+  const projektTip = projekt.projekt_tipi?.find(pt => pt.tip === tipId);
+  
+  if (!projektTip) {
+    throw new Error('ProjektTip ne obstaja');
+  }
+
   const stevilka = `${projektId}-${tipId}-${index + 1}`;
   const response = await axiosInstance.post<SerijskaStevilka>('/serijske-stevilke/', {
     projekt: projektId,
     stevilka: stevilka,
-    tip: tipId,
-    projekt_tip: tipId
+    projekt_tip: projektTip.id
   });
   return response.data;
 };
@@ -278,6 +265,15 @@ export const saveOdgovor = async (odgovor: Odgovor): Promise<any> => {
 export const getOdgovori = async (serijskaStevilkaId: number): Promise<Odgovor[]> => {
   const response = await axiosInstance.get<Odgovor[]>(`/odgovori/?serijska_stevilka=${serijskaStevilkaId}`);
   return response.data;
+};
+
+export const saveOdgovori = async (odgovori: Odgovor[]): Promise<any> => {
+  try {
+    await axiosInstance.post('/odgovori/batch/', odgovori);
+  } catch (err) {
+    console.error('Napaka pri shranjevanju odgovorov:', err);
+    throw err;
+  }
 };
 
 // Nastavitve
@@ -388,6 +384,31 @@ export const updateUser = async (id: number, data: Partial<User>): Promise<User>
 
 export const deleteUser = async (userId: number): Promise<void> => {
   await axiosInstance.delete(`/auth/users/${userId}/`);
+};
+
+export const exportToXlsx = async (projektId: string): Promise<Blob> => {
+  const response = await axiosInstance.get(`/projekti/${projektId}/export-xlsx/`, {
+    responseType: 'blob'
+  });
+  return response.data;
+};
+
+// Uvoz in izvoz projektov
+export const exportProjectsToJson = async (): Promise<Blob> => {
+  const response = await axiosInstance.get('/projekti/export-json/', {
+    responseType: 'blob'
+  });
+  return response.data;
+};
+
+export const importProjectsFromJson = async (file: File): Promise<void> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  await axiosInstance.post('/projekti/import-json/', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
 };
 
 export default axiosInstance; 

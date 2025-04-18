@@ -32,6 +32,7 @@ import {
   TableRow,
   TableCell,
   DialogContentText,
+  Checkbox,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -61,9 +62,15 @@ import {
   Nastavitve,
   Profil,
   User as ApiUser,
+  getProjekti,
+  deleteProjekt,
+  exportProjectsToJson,
+  importProjectsFromJson,
+  createProjekt,
 } from '../api/api';
 import FileUpload from '../components/FileUpload';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-hot-toast';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -120,7 +127,7 @@ const Settings: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
-  const [selectedTip, setSelectedTip] = useState<Tip | null>(null);
+  const [selectedTip, setSelectedTip] = useState<number | null>(null);
   const [newTipNaziv, setNewTipNaziv] = useState('');
   const [nastavitve, setNastavitve] = useState<Nastavitve>({});
   const [profili, setProfili] = useState<Profil[]>([]);
@@ -133,14 +140,20 @@ const Settings: React.FC = () => {
     severity: 'success',
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [projekti, setProjekti] = useState<any[]>([]);
+  const [newProjektId, setNewProjektId] = useState('');
+  const [steviloPonovitev, setSteviloPonovitev] = useState(1);
 
   const fetchData = async () => {
     try {
-      const [tipiData, nastavitveData, profiliData, usersData] = await Promise.all([
+      const [tipiData, nastavitveData, profiliData, usersData, projektiData] = await Promise.all([
         getTipi(),
         getNastavitve(),
         getProfili(),
-        isAdmin() ? getUsers() : Promise.resolve([])
+        isAdmin() ? getUsers() : Promise.resolve([]),
+        isAdmin() ? getProjekti() : Promise.resolve([])
       ]);
       setTipi(tipiData);
       setNastavitve(nastavitveData);
@@ -149,6 +162,7 @@ const Settings: React.FC = () => {
         ...user,
         osebna_stevilka: user.username
       })));
+      setProjekti(projektiData);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Napaka pri pridobivanju podatkov');
@@ -179,7 +193,8 @@ const Settings: React.FC = () => {
           { label: "Sistem", index: 2 },
           { label: "Profil", index: 3 },
           { label: "Moderatorji", index: 4 },
-          { label: "Uporabniki", index: 5 }
+          { label: "Uporabniki", index: 5 },
+          { label: "Projekti", index: 6 }
         ];
       case 'moderator':
         return [
@@ -553,6 +568,8 @@ const Settings: React.FC = () => {
               </TableContainer>
             </Box>
           ) : null;
+        case 6: // Projekti
+          return renderProjectsTab();
         default:
           return null;
       }
@@ -651,6 +668,8 @@ const Settings: React.FC = () => {
               </Grid>
             </Box>
           );
+        case 1: // Projekti
+          return renderProjectsTab();
         default:
           return null;
       }
@@ -671,10 +690,10 @@ const Settings: React.FC = () => {
   const handleUpdateTip = async () => {
     if (!selectedTip) return;
     try {
-      const response = await updateTip(selectedTip.id, {
-        naziv: selectedTip.naziv,
+      const response = await updateTip(selectedTip, {
+        naziv: tipi.find(t => t.id === selectedTip)?.naziv || '',
       });
-      setTipi(tipi.map((t) => (t.id === selectedTip.id ? response : t)));
+      setTipi(tipi.map((t) => (t.id === selectedTip ? response : t)));
       setSuccess('Tip uspešno posodobljen');
       handleCloseEditDialog();
     } catch (error) {
@@ -769,7 +788,7 @@ const Settings: React.FC = () => {
   };
 
   const handleOpenEditDialog = (tip: Tip) => {
-    setSelectedTip(tip);
+    setSelectedTip(tip.id);
     setOpenDialog(true);
   };
 
@@ -819,6 +838,236 @@ const Settings: React.FC = () => {
     }
   };
 
+  const handleDeleteProjects = async () => {
+    try {
+      for (const projectId of selectedProjects) {
+        await deleteProjekt(parseInt(projectId));
+      }
+      setDeleteDialogOpen(false);
+      setSelectedProjects([]);
+      const projektiData = await getProjekti();
+      setProjekti(projektiData);
+      toast.success('Projekti uspešno izbrisani');
+    } catch (error) {
+      console.error('Napaka pri brisanju projektov:', error);
+      toast.error('Napaka pri brisanju projektov');
+    }
+  };
+
+  const handleExportProjects = async () => {
+    try {
+      const blob = await exportProjectsToJson();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'projekti.json';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Projekti uspešno izvoženi');
+    } catch (error) {
+      console.error('Napaka pri izvozu projektov:', error);
+      if (error instanceof Error) {
+        toast.error(`Napaka pri izvozu projektov: ${error.message}`);
+      } else {
+        toast.error('Napaka pri izvozu projektov');
+      }
+    }
+  };
+
+  const handleImportProjects = async () => {
+    if (!importFile) return;
+    try {
+      await importProjectsFromJson(importFile);
+      setImportFile(null);
+      toast.success('Projekti uspešno uvoženi');
+    } catch (error) {
+      toast.error('Napaka pri uvozu projektov');
+    }
+  };
+
+  const handleCreateProjekt = async () => {
+    try {
+      if (!selectedTip) {
+        toast.error('Izberite tip projekta');
+        return;
+      }
+
+      const newProjekt = {
+        id: newProjektId,
+        osebna_stevilka: user?.osebna_stevilka || '',
+        datum: new Date().toISOString().split('T')[0],
+        projekt_tipi: [{
+          tip: selectedTip,
+          stevilo_ponovitev: steviloPonovitev
+        }]
+      };
+
+      await createProjekt(newProjekt);
+      toast.success('Projekt uspešno ustvarjen');
+      
+      // Osvežimo seznam projektov
+      const updatedProjekti = await getProjekti();
+      setProjekti(updatedProjekti);
+      
+      // Ponastavimo stanje
+      setNewProjektId('');
+      setSelectedTip(null);
+      setSteviloPonovitev(1);
+    } catch (error) {
+      console.error('Napaka pri ustvarjanju projekta:', error);
+      if (error instanceof Error) {
+        toast.error(`Napaka pri ustvarjanju projekta: ${error.message}`);
+      } else {
+        toast.error('Napaka pri ustvarjanju projekta');
+      }
+    }
+  };
+
+  const renderProjectsTab = () => (
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h6" gutterBottom>
+        Upravljanje projektov
+      </Typography>
+      
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="subtitle1" gutterBottom>
+          Izvoz projektov
+        </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleExportProjects}
+          startIcon={<DownloadIcon />}
+        >
+          Izvozi projekte v JSON
+        </Button>
+      </Box>
+
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="subtitle1" gutterBottom>
+          Uvoz projektov
+        </Typography>
+        <input
+          type="file"
+          accept=".json"
+          onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+          style={{ display: 'none' }}
+          id="import-file"
+        />
+        <label htmlFor="import-file">
+          <Button
+            variant="contained"
+            color="primary"
+            component="span"
+            startIcon={<UploadIcon />}
+          >
+            Izberi datoteko
+          </Button>
+        </label>
+        {importFile && (
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="body2">
+              Izbrana datoteka: {importFile.name}
+            </Typography>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={handleImportProjects}
+              sx={{ mt: 1 }}
+            >
+              Uvozi projekte
+            </Button>
+          </Box>
+        )}
+      </Box>
+
+      <Box>
+        <Typography variant="subtitle1" gutterBottom>
+          Seznam projektov
+        </Typography>
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    indeterminate={selectedProjects.length > 0 && selectedProjects.length < projekti.length}
+                    checked={projekti.length > 0 && selectedProjects.length === projekti.length}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedProjects(projekti.map(p => p.id.toString()));
+                      } else {
+                        setSelectedProjects([]);
+                      }
+                    }}
+                  />
+                </TableCell>
+                <TableCell>ID</TableCell>
+                <TableCell>Osebna številka</TableCell>
+                <TableCell>Datum</TableCell>
+                <TableCell>Tip</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {projekti.map((projekt) => (
+                <TableRow key={projekt.id}>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      checked={selectedProjects.includes(projekt.id.toString())}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedProjects([...selectedProjects, projekt.id.toString()]);
+                        } else {
+                          setSelectedProjects(selectedProjects.filter(id => id !== projekt.id.toString()));
+                        }
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>{projekt.id}</TableCell>
+                  <TableCell>{projekt.osebna_stevilka}</TableCell>
+                  <TableCell>{new Date(projekt.datum).toLocaleDateString('sl-SI')}</TableCell>
+                  <TableCell>{projekt.projekt_tipi?.[0]?.tip?.naziv || '-'}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <Box sx={{ mt: 2 }}>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => setDeleteDialogOpen(true)}
+            disabled={selectedProjects.length === 0}
+            startIcon={<DeleteIcon />}
+          >
+            Izbriši izbrane projekte
+          </Button>
+        </Box>
+      </Box>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Potrditev brisanja</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Ali ste prepričani, da želite izbrisati {selectedProjects.length} {selectedProjects.length === 1 ? 'projekt' : selectedProjects.length < 5 ? 'projekte' : 'projektov'}? To dejanje ni mogoče razveljaviti.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Prekliči</Button>
+          <Button onClick={handleDeleteProjects} color="error">
+            Izbriši
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Paper sx={{ width: '100%', mb: 2 }}>
@@ -848,10 +1097,10 @@ const Settings: React.FC = () => {
             margin="dense"
             label="Naziv"
             fullWidth
-            value={selectedTip?.naziv || ''}
+            value={tipi.find(t => t.id === selectedTip)?.naziv || ''}
             onChange={(e) =>
               setSelectedTip(
-                selectedTip ? { ...selectedTip, naziv: e.target.value } : null
+                selectedTip ? parseInt(e.target.value) : null
               )
             }
           />
@@ -910,22 +1159,6 @@ const Settings: React.FC = () => {
           <Button onClick={handleUpdateUser} color="primary">
             Shrani
           </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-      >
-        <DialogTitle>Potrditev brisanja</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Ali ste prepričani, da želite izbrisati uporabnika {selectedUser?.first_name} {selectedUser?.last_name}?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Prekliči</Button>
-          <Button onClick={handleDeleteUser} color="error">Izbriši</Button>
         </DialogActions>
       </Dialog>
 

@@ -20,6 +20,9 @@ import {
   Fab,
   CircularProgress,
   Alert,
+  SpeedDial,
+  SpeedDialIcon,
+  SpeedDialAction,
 } from '@mui/material';
 import {
   getVprasanja,
@@ -34,11 +37,16 @@ import {
   Projekt,
   SerijskaStevilka,
   getSerijskeStevilke,
+  exportToXlsx,
+  createProjekt,
+  saveOdgovori,
 } from '../api/api';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import SaveIcon from '@mui/icons-material/Save';
 import MenuIcon from '@mui/icons-material/Menu';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import axios from 'axios';
 
 const Checklist: React.FC = () => {
   const { projektId = '', tipId = '1', ponovitve = '3' } = useParams<{
@@ -70,8 +78,17 @@ const Checklist: React.FC = () => {
         setError(null);
 
         // Najprej pridobimo projekt
-        const projektData = await getProjekt(projektId);
-        setProjekt(projektData);
+        let projektData;
+        try {
+          projektData = await getProjekt(projektId);
+          setProjekt(projektData);
+        } catch (error) {
+          if (axios.isAxiosError(error) && error.response?.status === 404) {
+            setError('Projekt ne obstaja. Ustvarite nov projekt.');
+            return;
+          }
+          throw error;
+        }
         
         // Nastavimo število ponovitev iz projekta
         if (projektData.projekt_tipi && projektData.projekt_tipi.length > 0) {
@@ -100,19 +117,33 @@ const Checklist: React.FC = () => {
             )
           );
           setSerijskeStevilke(newSerijskeStevilke);
+          // Za nove serijske številke ne naložimo odgovorov
+          setAnswers({});
         } else {
           setSerijskeStevilke(existingSerijskeStevilke);
           
-          // Naloži obstoječe odgovore za vse serijske številke
-          const allAnswers: { [key: string]: string } = {};
-          await Promise.all(existingSerijskeStevilke.map(async (stevilka) => {
-            const odgovori = await getOdgovori(stevilka.id);
-            odgovori.forEach(odgovor => {
-              const odgovorKey = `${odgovor.vprasanje}-${stevilka.stevilka}`;
-              allAnswers[odgovorKey] = odgovor.odgovor;
-            });
-          }));
-          setAnswers(allAnswers);
+          // Naloži obstoječe odgovore samo če so serijske številke starejše od 1 minute
+          const now = new Date();
+          const isNewProject = existingSerijskeStevilke.some(stevilka => {
+            const createdDate = new Date(stevilka.created_at);
+            return (now.getTime() - createdDate.getTime()) < 60000; // 1 minuta
+          });
+
+          if (!isNewProject) {
+            // Naloži obstoječe odgovore za vse serijske številke
+            const allAnswers: { [key: string]: string } = {};
+            await Promise.all(existingSerijskeStevilke.map(async (stevilka) => {
+              const odgovori = await getOdgovori(stevilka.id);
+              odgovori.forEach(odgovor => {
+                const odgovorKey = `${odgovor.vprasanje}-${stevilka.stevilka}`;
+                allAnswers[odgovorKey] = odgovor.odgovor;
+              });
+            }));
+            setAnswers(allAnswers);
+          } else {
+            // Za nove serijske številke ne naložimo odgovorov
+            setAnswers({});
+          }
         }
       } catch (err) {
         setError('Napaka pri nalaganju podatkov: ' + (err instanceof Error ? err.message : String(err)));
@@ -175,21 +206,20 @@ const Checklist: React.FC = () => {
 
   const handleMasovniOdgovor = async (vprasanjeId: number, value: string) => {
     try {
-      await Promise.all(serijskeStevilke.map(async (stevilka) => {
+      // Posodobi lokalno stanje
+      const odgovori = serijskeStevilke.map(stevilka => {
         const odgovorKey = `${vprasanjeId}-${stevilka.stevilka}`;
         setAnswers(prev => ({ ...prev, [odgovorKey]: value }));
         
-        try {
-          await saveOdgovor({
-            vprasanje: vprasanjeId,
-            odgovor: value,
-            serijska_stevilka: stevilka.id
-          });
-        } catch (err) {
-          throw new Error(`Napaka pri shranjevanju odgovora za serijsko številko ${stevilka.stevilka}`);
-        }
-      }));
+        return {
+          vprasanje: vprasanjeId,
+          odgovor: value,
+          serijska_stevilka: stevilka.id
+        };
+      });
       
+      // Shrani vse odgovore naenkrat
+      await saveOdgovori(odgovori);
       toast.success('Vsi odgovori uspešno shranjeni');
     } catch (err) {
       console.error('Napaka pri masovnem shranjevanju:', err);
@@ -225,6 +255,24 @@ const Checklist: React.FC = () => {
     } catch (error) {
       console.error('Napaka pri shranjevanju odgovorov:', error);
       toast.error('Napaka pri shranjevanju odgovorov');
+    }
+  };
+
+  const handleExportXlsx = async () => {
+    try {
+      const blob = await exportToXlsx(projektId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `projekt_${projektId}_odgovori.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Izvoz uspešno zaključen');
+    } catch (error) {
+      console.error('Napaka pri izvozu:', error);
+      toast.error('Napaka pri izvozu datoteke');
     }
   };
 
@@ -337,10 +385,33 @@ const Checklist: React.FC = () => {
     return (
       <Container maxWidth="lg">
         <Alert severity="error" sx={{ mt: 4 }}>{error}</Alert>
-        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
-          <Button variant="contained" onClick={() => window.location.reload()}>
-            Poskusi ponovno
+        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', gap: 2 }}>
+          <Button variant="contained" onClick={() => navigate('/')}>
+            Nazaj na začetek
           </Button>
+          {error.includes('ne obstaja') && (
+            <Button 
+              variant="contained" 
+              color="primary"
+              onClick={() => {
+                createProjekt({
+                  id: projektId,
+                  osebna_stevilka: localStorage.getItem('osebna_stevilka') || '1',
+                  datum: new Date().toISOString().split('T')[0],
+                  projekt_tipi: [{
+                    tip: parseInt(tipId),
+                    stevilo_ponovitev: parseInt(ponovitve)
+                  }]
+                }).then(() => {
+                  window.location.reload();
+                }).catch(err => {
+                  setError('Napaka pri ustvarjanju projekta: ' + err.message);
+                });
+              }}
+            >
+              Ustvari nov projekt
+            </Button>
+          )}
         </Box>
       </Container>
     );
@@ -524,22 +595,23 @@ const Checklist: React.FC = () => {
         </Box>
       </Container>
 
-      {/* Plavajoči gumb za shranjevanje */}
-      <Tooltip title="Shrani odgovore">
-        <Fab
-          color="primary"
-          aria-label="shrani"
+      {/* Plavajoči gumbi */}
+      <SpeedDial
+        ariaLabel="SpeedDial"
+        sx={{ position: 'fixed', bottom: 24, right: 24 }}
+        icon={<SpeedDialIcon />}
+      >
+        <SpeedDialAction
+          icon={<SaveIcon />}
+          tooltipTitle="Shrani odgovore"
           onClick={handleShraniOdgovore}
-          sx={{
-            position: 'fixed',
-            bottom: 24,
-            right: 24,
-            zIndex: 1000
-          }}
-        >
-          <SaveIcon />
-        </Fab>
-      </Tooltip>
+        />
+        <SpeedDialAction
+          icon={<FileDownloadIcon />}
+          tooltipTitle="Izvozi v Excel"
+          onClick={handleExportXlsx}
+        />
+      </SpeedDial>
     </Box>
   );
 };

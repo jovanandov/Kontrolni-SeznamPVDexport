@@ -166,13 +166,16 @@ Trenutno stanje:
 
 ## 25. april 2025
 
-Commit: 37bda884c503188953c3010996d11991695b56c6
+### Commit: d8ca0067d81eb0d0efa68588b2365980962f8c98
+- Dodano avtomatsko premikanje na vrh strani ob menjavi segmenta
+- Implementirana gladka animacija premikanja
+- Izboljšana uporabniška izkušnja pri navigaciji med segmenti
 
-### Implementirane funkcionalnosti
+### Prejšnji commit: 37bda884c503188953c3010996d11991695b56c6
 - Dodan plavajoči gumb za shranjevanje odgovorov
 - Implementirana logika za shranjevanje odgovorov
 - Preverjeno delovanje shranjevanja v bazo podatkov
-- Potrjeno pravilno delovanje za različne tipe vprašanj (boolean, multiple choice, text)
+- Potrjeno pravilno delovanje za različne tipe vprašanj
 
 ### Znane težave
 - Ni posebnih težav

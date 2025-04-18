@@ -79,7 +79,19 @@ const StartChecklist: React.FC = () => {
     setError('');
 
     try {
-      // Ustvarimo nov projekt
+      // Najprej preverimo, če projekt že obstaja
+      const obstojeciProjekt = projekti.find(p => p.id === formData.stevilka_projekta);
+      
+      if (obstojeciProjekt) {
+        // Če projekt obstaja, preusmerimo na obstoječi projekt
+        const projektTip = obstojeciProjekt.projekt_tipi?.[0];
+        if (projektTip) {
+          navigate(`/checklist/${projektTip.tip}/${obstojeciProjekt.id}/${projektTip.stevilo_ponovitev}`);
+          return;
+        }
+      }
+
+      // Če projekt ne obstaja, ustvarimo novega
       const projekt = await createProjekt({
         id: formData.stevilka_projekta,
         osebna_stevilka: formData.osebna_stevilka,
@@ -90,7 +102,11 @@ const StartChecklist: React.FC = () => {
         }]
       });
 
-      // Preusmerimo na kontrolni seznam z ustreznim številom ponovitev
+      // Osvežimo seznam projektov
+      const projektiData = await getProjekti();
+      setProjekti(projektiData);
+
+      // Preusmerimo na kontrolni seznam
       const projektTip = projekt.projekt_tipi?.[0];
       if (projektTip) {
         navigate(`/checklist/${projektTip.tip}/${projekt.id}/${projektTip.stevilo_ponovitev}`);
