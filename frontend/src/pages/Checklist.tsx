@@ -102,6 +102,17 @@ const Checklist: React.FC = () => {
           setSerijskeStevilke(newSerijskeStevilke);
         } else {
           setSerijskeStevilke(existingSerijskeStevilke);
+          
+          // Naloži obstoječe odgovore za vse serijske številke
+          const allAnswers: { [key: string]: string } = {};
+          await Promise.all(existingSerijskeStevilke.map(async (stevilka) => {
+            const odgovori = await getOdgovori(stevilka.id);
+            odgovori.forEach(odgovor => {
+              const odgovorKey = `${odgovor.vprasanje}-${stevilka.stevilka}`;
+              allAnswers[odgovorKey] = odgovor.odgovor;
+            });
+          }));
+          setAnswers(allAnswers);
         }
       } catch (err) {
         setError('Napaka pri nalaganju podatkov: ' + (err instanceof Error ? err.message : String(err)));
@@ -185,15 +196,27 @@ const Checklist: React.FC = () => {
   const handleShraniOdgovore = async () => {
     try {
       const vprasanja = getCurrentSegmentVprasanja();
+      const promises: Promise<any>[] = [];
+
+      // Za vsako vprašanje v trenutnem segmentu
       for (const vprasanje of vprasanja) {
-        const odgovor: Odgovor = {
-          vprasanje: vprasanje.id,
-          odgovor: answers[`${vprasanje.id}-${serijskeStevilke[activeStep].stevilka}`] || '',
-          opomba: '',
-          serijska_stevilka: Number(serijskeStevilke[activeStep].stevilka)
-        };
-        await saveOdgovor(odgovor);
+        // Za vsako serijsko številko
+        for (const stevilka of serijskeStevilke) {
+          const odgovorKey = `${vprasanje.id}-${stevilka.stevilka}`;
+          const odgovor = answers[odgovorKey];
+          
+          // Če obstaja odgovor, ga shrani
+          if (odgovor !== undefined) {
+            promises.push(saveOdgovor({
+              vprasanje: vprasanje.id,
+              odgovor: odgovor,
+              serijska_stevilka: stevilka.id
+            }));
+          }
+        }
       }
+
+      await Promise.all(promises);
       toast.success('Odgovori uspešno shranjeni');
     } catch (error) {
       console.error('Napaka pri shranjevanju odgovorov:', error);
