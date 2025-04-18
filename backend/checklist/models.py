@@ -19,13 +19,24 @@ class Projekt(models.Model):
     id = models.CharField(max_length=50, primary_key=True)
     osebna_stevilka = models.CharField(max_length=50)
     datum = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.id}"
+
+class ProjektTip(models.Model):
+    projekt = models.ForeignKey(Projekt, related_name='projekt_tipi', on_delete=models.CASCADE)
     tip = models.ForeignKey(Tip, on_delete=models.PROTECT)
     stevilo_ponovitev = models.IntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.id} - {self.tip.naziv}"
+        return f"{self.projekt.id} - {self.tip.naziv} ({self.stevilo_ponovitev}x)"
+
+    class Meta:
+        unique_together = ('projekt', 'tip')
 
 class Segment(models.Model):
     id = models.AutoField(primary_key=True)
@@ -61,7 +72,8 @@ class Vprasanje(models.Model):
 class SerijskaStevilka(models.Model):
     id = models.AutoField(primary_key=True)
     projekt = models.ForeignKey(Projekt, related_name='serijske_stevilke', on_delete=models.CASCADE)
-    stevilka = models.CharField(max_length=100)  # format: {Projekt}-{Ponovitev}
+    projekt_tip = models.ForeignKey(ProjektTip, related_name='serijske_stevilke', on_delete=models.CASCADE)
+    stevilka = models.CharField(max_length=100)  # format: {Projekt}-{Tip}-{Ponovitev}
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

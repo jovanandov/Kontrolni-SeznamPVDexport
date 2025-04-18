@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import (
-    Tip, Projekt, Segment, Vprasanje, SerijskaStevilka,
+    Tip, Projekt, ProjektTip, Segment, Vprasanje, SerijskaStevilka,
     Odgovor, Nastavitev, Profil, LogSprememb
 )
 from django.contrib.auth.models import User
@@ -10,10 +10,19 @@ class TipSerializer(serializers.ModelSerializer):
         model = Tip
         fields = '__all__'
 
+class ProjektTipSerializer(serializers.ModelSerializer):
+    tip_naziv = serializers.CharField(source='tip.naziv', read_only=True)
+    
+    class Meta:
+        model = ProjektTip
+        fields = ['id', 'projekt', 'tip', 'tip_naziv', 'stevilo_ponovitev', 'created_at', 'updated_at']
+
 class ProjektSerializer(serializers.ModelSerializer):
+    projekt_tipi = ProjektTipSerializer(many=True, read_only=True)
+    
     class Meta:
         model = Projekt
-        fields = '__all__'
+        fields = ['id', 'osebna_stevilka', 'datum', 'projekt_tipi', 'created_at', 'updated_at']
 
 class SegmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -28,7 +37,8 @@ class VprasanjeSerializer(serializers.ModelSerializer):
 class SerijskaStevilkaSerializer(serializers.ModelSerializer):
     class Meta:
         model = SerijskaStevilka
-        fields = '__all__'
+        fields = ['id', 'projekt', 'projekt_tip', 'stevilka', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
 
 class OdgovorSerializer(serializers.ModelSerializer):
     class Meta:

@@ -7,7 +7,7 @@ from django.contrib.auth import login, logout
 from rest_framework.views import APIView
 from .models import (
     Tip, Projekt, Segment, Vprasanje, SerijskaStevilka,
-    Odgovor, Nastavitev, Profil, LogSprememb
+    Odgovor, Nastavitev, Profil, LogSprememb, ProjektTip
 )
 from .serializers import (
     TipSerializer, ProjektSerializer, SegmentSerializer, VprasanjeSerializer,
@@ -187,6 +187,90 @@ class ProjektViewSet(viewsets.ModelViewSet):
     serializer_class = ProjektSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def create(self, request, *args, **kwargs):
+        try:
+            projekt_id = request.data.get('id')
+            tip_id = request.data.get('tip')
+            stevilo_ponovitev = request.data.get('stevilo_ponovitev', 1)
+
+            # Preveri če projekt že obstaja
+            projekt = Projekt.objects.filter(id=projekt_id).first()
+            
+            if projekt:
+                # Projekt obstaja, dodaj nov tip
+                if ProjektTip.objects.filter(projekt=projekt, tip_id=tip_id).exists():
+                    return Response(
+                        {'error': f'Projekt {projekt_id} že ima tip {tip_id}'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Ustvari nov ProjektTip
+                projekt_tip = ProjektTip.objects.create(
+                    projekt=projekt,
+                    tip_id=tip_id,
+                    stevilo_ponovitev=stevilo_ponovitev
+                )
+                
+                # Generiraj serijske številke
+                for i in range(stevilo_ponovitev):
+                    SerijskaStevilka.objects.create(
+                        projekt=projekt,
+                        projekt_tip=projekt_tip,
+                        stevilka=f"{projekt_id}-{tip_id}-{i+1}"
+                    )
+                
+                return Response(self.serializer_class(projekt).data)
+            else:
+                # Ustvari nov projekt
+                with transaction.atomic():
+                    projekt = Projekt.objects.create(
+                        id=projekt_id,
+                        osebna_stevilka=request.data.get('osebna_stevilka'),
+                        datum=request.data.get('datum')
+                    )
+                    
+                    # Ustvari ProjektTip
+                    projekt_tip = ProjektTip.objects.create(
+                        projekt=projekt,
+                        tip_id=tip_id,
+                        stevilo_ponovitev=stevilo_ponovitev
+                    )
+                    
+                    # Generiraj serijske številke
+                    for i in range(stevilo_ponovitev):
+                        SerijskaStevilka.objects.create(
+                            projekt=projekt,
+                            projekt_tip=projekt_tip,
+                            stevilka=f"{projekt_id}-{tip_id}-{i+1}"
+                        )
+                    
+                    return Response(self.serializer_class(projekt).data)
+                    
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @action(detail=True, methods=['get'])
+    def tipi(self, request, pk=None):
+        """Vrni vse tipe za projekt"""
+        projekt = self.get_object()
+        tipi = projekt.projekt_tipi.all()
+        return Response({
+            'projekt_id': projekt.id,
+            'tipi': [
+                {
+                    'tip_id': pt.tip.id,
+                    'tip_naziv': pt.tip.naziv,
+                    'stevilo_ponovitev': pt.stevilo_ponovitev,
+                    'serijske_stevilke': [
+                        ss.stevilka for ss in pt.serijske_stevilke.all()
+                    ]
+                } for pt in tipi
+            ]
+        })
+
     @action(detail=True, methods=['get'])
     def segmenti(self, request, pk=None):
         projekt = self.get_object()
@@ -223,12 +307,47 @@ class SerijskaStevilkaViewSet(viewsets.ModelViewSet):
     serializer_class = SerijskaStevilkaSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        projekt = self.request.query_params.get('projekt', None)
+        if projekt is not None:
+            queryset = queryset.filter(projekt_id=projekt)
+        return queryset
+
     @action(detail=True, methods=['get'])
     def odgovori(self, request, pk=None):
         serijska_stevilka = self.get_object()
         odgovori = serijska_stevilka.odgovori.all()
         serializer = OdgovorSerializer(odgovori, many=True)
         return Response(serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        try:
+            projekt_id = request.data.get('projekt')
+            tip_id = request.data.get('tip')
+            stevilka = request.data.get('stevilka')
+            
+            # Pridobi ProjektTip
+            projekt_tip = ProjektTip.objects.get(projekt_id=projekt_id, tip_id=tip_id)
+            
+            # Ustvari serijsko številko
+            serijska_stevilka = SerijskaStevilka.objects.create(
+                projekt_id=projekt_id,
+                projekt_tip=projekt_tip,
+                stevilka=stevilka
+            )
+            
+            return Response(self.serializer_class(serijska_stevilka).data)
+        except ProjektTip.DoesNotExist:
+            return Response(
+                {'error': 'ProjektTip ne obstaja'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 class OdgovorViewSet(viewsets.ModelViewSet):
     queryset = Odgovor.objects.all()
