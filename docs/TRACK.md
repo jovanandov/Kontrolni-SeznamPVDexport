@@ -161,3 +161,22 @@ Trenutno stanje:
 
 ### .gitignore
 // ... existing code ...
+
+# Dnevnik sprememb
+
+## 25. april 2025
+
+Commit: 37bda884c503188953c3010996d11991695b56c6
+
+### Implementirane funkcionalnosti
+- Dodan plavajoči gumb za shranjevanje odgovorov
+- Implementirana logika za shranjevanje odgovorov
+- Preverjeno delovanje shranjevanja v bazo podatkov
+- Potrjeno pravilno delovanje za različne tipe vprašanj (boolean, multiple choice, text)
+
+### Znane težave
+- Ni posebnih težav
+
+### Naslednji koraki
+- Implementacija masovnega vnosa besedilnih odgovorov
+- Izboljšave uporabniške izkušnje pri masovnem vnosu

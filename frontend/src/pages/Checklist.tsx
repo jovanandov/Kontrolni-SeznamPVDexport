@@ -132,10 +132,14 @@ const Checklist: React.FC = () => {
 
   const handleNext = () => {
     setActiveStep((prevStep) => prevStep + 1);
+    // Premik na vrh strani z gladko animacijo
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleBack = () => {
     setActiveStep((prevStep) => prevStep - 1);
+    // Premik na vrh strani z gladko animacijo
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const showMessage = (message: string) => {
