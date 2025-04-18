@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-^j8y7r(sb@an)aglk3*nxp*8#b=_d0uma(ek*w@-kxvv04fj1c
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '192.168.1.186']
 
 
 # Application definition
@@ -142,6 +142,7 @@ REST_FRAMEWORK = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://192.168.1.186:5173",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -171,6 +172,7 @@ CORS_ALLOW_HEADERS = [
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://192.168.1.186:5173",
 ]
 CSRF_COOKIE_SECURE = False  # Za razvojno okolje
 CSRF_COOKIE_HTTPONLY = False  # Za razvojno okolje
@@ -180,3 +182,4 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SECURE = False  # Za razvojno okolje
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_DOMAIN = None  # Dovoli kolačke za vse domene

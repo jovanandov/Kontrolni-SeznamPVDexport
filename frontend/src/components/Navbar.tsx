@@ -1,123 +1,140 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   AppBar,
+  Box,
   Toolbar,
   IconButton,
   Typography,
-  Drawer,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Divider,
-  Box,
+  Menu,
+  Container,
+  Button,
+  MenuItem,
   useTheme,
   useMediaQuery,
 } from '@mui/material';
-import {
-  Menu as MenuIcon,
-  Home as HomeIcon,
-  Settings as SettingsIcon,
-  Logout as LogoutIcon,
-} from '@mui/icons-material';
+import MenuIcon from '@mui/icons-material/Menu';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar: React.FC = () => {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [anchorElNav, setAnchorElNav] = useState<null | HTMLElement>(null);
+  const { isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const { logout } = useAuth();
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
+  const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorElNav(event.currentTarget);
   };
 
-  const handleSettingsClick = () => {
-    setSettingsOpen(!settingsOpen);
+  const handleCloseNavMenu = () => {
+    setAnchorElNav(null);
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleMenuClick = (path: string) => {
+    navigate(path);
+    handleCloseNavMenu();
+  };
+
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
-  const drawer = (
-    <Box sx={{ width: 250 }}>
-      <List>
-        <ListItem button onClick={() => navigate('/')}>
-          <ListItemIcon>
-            <HomeIcon />
-          </ListItemIcon>
-          <ListItemText primary="Domov" />
-        </ListItem>
-        <ListItem button onClick={() => navigate('/settings')}>
-          <ListItemIcon>
-            <SettingsIcon />
-          </ListItemIcon>
-          <ListItemText primary="Nastavitve" />
-        </ListItem>
-        <Divider />
-        <ListItem button onClick={handleLogout}>
-          <ListItemIcon>
-            <LogoutIcon />
-          </ListItemIcon>
-          <ListItemText primary="Odjava" />
-        </ListItem>
-      </List>
-    </Box>
-  );
-
   return (
-    <Box sx={{ display: 'flex' }}>
-      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
+    <AppBar position="static" sx={{ mb: 2 }}>
+      <Container maxWidth="xl">
+        <Toolbar disableGutters>
+          {/* Desktop Logo */}
+          <Typography
+            variant="h6"
+            noWrap
+            component="div"
+            sx={{ mr: 2, display: { xs: 'none', md: 'flex' } }}
           >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div">
-            Kontrolni seznam
+            KSZ
           </Typography>
+
+          {/* Mobile Menu */}
+          <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }}>
+            <IconButton
+              size="large"
+              aria-label="menu"
+              aria-controls="menu-appbar"
+              aria-haspopup="true"
+              onClick={handleOpenNavMenu}
+              color="inherit"
+            >
+              <MenuIcon />
+            </IconButton>
+            <Menu
+              id="menu-appbar"
+              anchorEl={anchorElNav}
+              anchorOrigin={{
+                vertical: 'bottom',
+                horizontal: 'left',
+              }}
+              keepMounted
+              transformOrigin={{
+                vertical: 'top',
+                horizontal: 'left',
+              }}
+              open={Boolean(anchorElNav)}
+              onClose={handleCloseNavMenu}
+              sx={{
+                display: { xs: 'block', md: 'none' },
+              }}
+            >
+              <MenuItem onClick={() => handleMenuClick('/')}>
+                <Typography textAlign="center">Kontrolni seznam</Typography>
+              </MenuItem>
+              <MenuItem onClick={() => handleMenuClick('/settings')}>
+                <Typography textAlign="center">Nastavitve</Typography>
+              </MenuItem>
+              {isAuthenticated && (
+                <MenuItem onClick={handleLogout}>
+                  <Typography textAlign="center">Odjava</Typography>
+                </MenuItem>
+              )}
+            </Menu>
+          </Box>
+
+          {/* Mobile Logo */}
+          <Typography
+            variant="h6"
+            noWrap
+            component="div"
+            sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }}
+          >
+            KSZ
+          </Typography>
+
+          {/* Desktop Menu */}
+          <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' }, justifyContent: 'flex-end' }}>
+            <Button
+              onClick={() => handleMenuClick('/')}
+              sx={{ my: 2, color: 'white', display: 'block' }}
+            >
+              Kontrolni seznam
+            </Button>
+            <Button
+              onClick={() => handleMenuClick('/settings')}
+              sx={{ my: 2, color: 'white', display: 'block' }}
+            >
+              Nastavitve
+            </Button>
+            {isAuthenticated && (
+              <Button
+                onClick={handleLogout}
+                sx={{ my: 2, color: 'white', display: 'block' }}
+              >
+                Odjava
+              </Button>
+            )}
+          </Box>
         </Toolbar>
-      </AppBar>
-      <Box
-        component="nav"
-        sx={{ width: { sm: 250 }, flexShrink: { sm: 0 } }}
-      >
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true, // Better open performance on mobile.
-          }}
-          sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: 250 },
-          }}
-        >
-          {drawer}
-        </Drawer>
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: 250 },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
-    </Box>
+      </Container>
+    </AppBar>
   );
 };
 

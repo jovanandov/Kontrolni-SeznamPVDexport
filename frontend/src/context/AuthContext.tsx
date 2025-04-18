@@ -24,6 +24,9 @@ interface AuthContextType {
     first_name: string;
     last_name: string;
   }) => Promise<boolean>;
+  isAdmin: () => boolean;
+  isModerator: () => boolean;
+  isUser: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (osebna_stevilka: string, password: string) => {
     try {
-      const response = await api.login({ osebna_stevilka, password });
+      const response = await api.login(osebna_stevilka, password);
       if (response) {
         const userData = await api.getUser();
         setIsAuthenticated(true);
@@ -83,7 +86,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     last_name: string;
   }) => {
     try {
-      const response = await api.register(userData);
+      const response = await api.register({
+        osebna_stevilka: userData.osebna_stevilka,
+        password: userData.password,
+        email: userData.email,
+        first_name: userData.first_name,
+        last_name: userData.last_name
+      });
       if (response) {
         return true;
       }
@@ -94,8 +103,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const isAdmin = () => {
+    return user?.is_superuser || false;
+  };
+
+  const isModerator = () => {
+    return user?.is_staff || false;
+  };
+
+  const isUser = () => {
+    return isAuthenticated && !isAdmin() && !isModerator();
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, register }}>
+    <AuthContext.Provider value={{ 
+      isAuthenticated, 
+      user, 
+      login, 
+      logout, 
+      register,
+      isAdmin,
+      isModerator,
+      isUser
+    }}>
       {children}
     </AuthContext.Provider>
   );
