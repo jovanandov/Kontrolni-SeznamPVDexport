@@ -21,6 +21,7 @@ import pandas as pd
 import io
 from django.http import HttpResponse
 from django.db import transaction
+import json
 
 # Create your views here.
 
@@ -187,6 +188,27 @@ class ProjektViewSet(viewsets.ModelViewSet):
     serializer_class = ProjektSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    @action(detail=False, methods=['GET'], url_path='export-json')
+    def export_json(self, request):
+        """Izvozi vse projekte v JSON format."""
+        try:
+            projekti = self.get_queryset()
+            serializer = self.get_serializer(projekti, many=True)
+            
+            # Ustvarimo JSON response
+            response = HttpResponse(
+                content_type='application/json',
+            )
+            response['Content-Disposition'] = 'attachment; filename=projekti.json'
+            
+            # Uporabimo json.dumps za pravilno formatiranje
+            json.dump(serializer.data, response, indent=2, ensure_ascii=False)
+            
+            return response
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
     def create(self, request, *args, **kwargs):
         try:
             projekt_id = request.data.get('id')
@@ -278,6 +300,106 @@ class ProjektViewSet(viewsets.ModelViewSet):
         serializer = SegmentSerializer(segmenti, many=True)
         return Response(serializer.data)
 
+    @action(detail=True, methods=['GET'], url_path='export-xlsx')
+    def export_xlsx(self, request, pk=None):
+        """Izvozi odgovore projekta v XLSX format."""
+        try:
+            # 1. Pridobi projekt in preveri, če obstaja
+            projekt = self.get_object()
+            print(f"Izvažam projekt {projekt.id}")
+            
+            # 2. Pridobi projekt_tip in preveri, če obstaja
+            projekt_tip = projekt.projekt_tipi.first()
+            if not projekt_tip:
+                return Response({'error': 'Projekt nima določenega tipa'}, status=400)
+            
+            # 3. Pridobi serijske številke
+            serijske_stevilke = SerijskaStevilka.objects.filter(projekt=projekt)
+            if not serijske_stevilke.exists():
+                return Response({'error': 'Projekt nima serijskih številk'}, status=400)
+            
+            # 4. Pridobi segmente
+            segmenti = Segment.objects.filter(tip_id=projekt_tip.tip.id)
+            if not segmenti.exists():
+                return Response({'error': 'Ni najdenih segmentov za ta tip projekta'}, status=400)
+            
+            # 5. Ustvari Excel datoteko
+            excel_file = io.BytesIO()
+            
+            try:
+                with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
+                    for segment in segmenti:
+                        # Pridobi vprašanja za segment
+                        vprasanja = Vprasanje.objects.filter(segment=segment)
+                        if not vprasanja.exists():
+                            continue
+                        
+                        # Pripravi podatke za DataFrame
+                        data = []
+                        for vprasanje in vprasanja:
+                            for st in serijske_stevilke:
+                                odgovor = Odgovor.objects.filter(
+                                    vprasanje=vprasanje,
+                                    serijska_stevilka=st
+                                ).first()
+                                
+                                data.append({
+                                    'Serijska številka': st.stevilka,
+                                    'Vprašanje': vprasanje.vprasanje,
+                                    'Odgovor': odgovor.odgovor if odgovor else '',
+                                    'Opomba': odgovor.opomba if odgovor and odgovor.opomba else '',
+                                    'Obvezno': 'Da' if vprasanje.obvezno else 'Ne',
+                                    'Tip vprašanja': vprasanje.tip
+                                })
+                        
+                        if data:
+                            # Ustvari DataFrame
+                            df = pd.DataFrame(data)
+                            
+                            # Očisti ime zavihka
+                            sheet_name = segment.naziv[:31]
+                            sheet_name = "".join(c for c in sheet_name if c.isalnum() or c in (' ', '-', '_'))
+                            if not sheet_name:
+                                sheet_name = f"Segment_{segment.id}"
+                            
+                            # Zapiši v Excel
+                            df.to_excel(writer, sheet_name=sheet_name, index=False)
+                            
+                            # Prilagodi širino stolpcev
+                            worksheet = writer.sheets[sheet_name]
+                            for idx, col in enumerate(df.columns):
+                                max_length = max(
+                                    df[col].astype(str).apply(len).max(),
+                                    len(str(col))
+                                )
+                                worksheet.column_dimensions[chr(65 + idx)].width = max_length + 2
+            
+            except Exception as e:
+                print(f"Napaka pri ustvarjanju Excel datoteke: {str(e)}")
+                return Response({'error': 'Napaka pri ustvarjanju Excel datoteke'}, status=500)
+            
+            # 6. Pripravi response
+            excel_file.seek(0)
+            
+            response = HttpResponse(
+                excel_file.read(),
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            
+            # Ustvari ime datoteke
+            filename = f"Projekt_{projekt.id}_{projekt_tip.tip.naziv}_{projekt.datum}.xlsx"
+            filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.'))
+            
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            return response
+            
+        except Exception as e:
+            print(f"Napaka pri izvozu: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            return Response({'error': str(e)}, status=500)
+
 class SegmentViewSet(viewsets.ModelViewSet):
     queryset = Segment.objects.all()
     serializer_class = SegmentSerializer
@@ -307,13 +429,6 @@ class SerijskaStevilkaViewSet(viewsets.ModelViewSet):
     serializer_class = SerijskaStevilkaSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        projekt = self.request.query_params.get('projekt', None)
-        if projekt is not None:
-            queryset = queryset.filter(projekt_id=projekt)
-        return queryset
-
     @action(detail=True, methods=['get'])
     def odgovori(self, request, pk=None):
         serijska_stevilka = self.get_object()
@@ -321,38 +436,21 @@ class SerijskaStevilkaViewSet(viewsets.ModelViewSet):
         serializer = OdgovorSerializer(odgovori, many=True)
         return Response(serializer.data)
 
-    def create(self, request, *args, **kwargs):
-        try:
-            projekt_id = request.data.get('projekt')
-            tip_id = request.data.get('tip')
-            stevilka = request.data.get('stevilka')
-            
-            # Pridobi ProjektTip
-            projekt_tip = ProjektTip.objects.get(projekt_id=projekt_id, tip_id=tip_id)
-            
-            # Ustvari serijsko številko
-            serijska_stevilka = SerijskaStevilka.objects.create(
-                projekt_id=projekt_id,
-                projekt_tip=projekt_tip,
-                stevilka=stevilka
-            )
-            
-            return Response(self.serializer_class(serijska_stevilka).data)
-        except ProjektTip.DoesNotExist:
-            return Response(
-                {'error': 'ProjektTip ne obstaja'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
 class OdgovorViewSet(viewsets.ModelViewSet):
     queryset = Odgovor.objects.all()
     serializer_class = OdgovorSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    @action(detail=False, methods=['POST'], url_path='batch')
+    def batch_create(self, request):
+        try:
+            odgovori = request.data
+            serializer = self.get_serializer(data=odgovori, many=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class NastavitevViewSet(viewsets.ModelViewSet):
     queryset = Nastavitev.objects.all()

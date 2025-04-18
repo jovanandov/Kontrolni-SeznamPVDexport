@@ -183,3 +183,51 @@ SESSION_COOKIE_SECURE = False  # Za razvojno okolje
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_DOMAIN = None  # Dovoli kolačke za vse domene
+
+# Logging settings
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {asctime} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': '../logs/django.log',
+            'formatter': 'verbose',
+        },
+        'checklist_file': {
+            'class': 'logging.FileHandler',
+            'filename': '../logs/checklist.log',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'checklist': {
+            'handlers': ['console', 'checklist_file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
