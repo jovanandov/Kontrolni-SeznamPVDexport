@@ -149,6 +149,25 @@
 - [ ] Izboljšava validacije obrazcev
 - [ ] Dodajanje tooltipov in pomoči
 
+## 7. Optimizacija shranjevanja odgovorov [NOVO 19.4.2024]
+- [ ] Izboljšava performans batch_create metode:
+  - [ ] Implementacija indikatorja nalaganja
+  - [ ] Implementacija asinhronega shranjevanja
+  - [ ] Optimizacija podatkovne baze z indeksi
+  - [ ] Implementacija paginated batch save
+  - [ ] Dodajanje progress bara za masovno shranjevanje
+
+## 8. Izboljšave JSON izvoza [NOVO 19.4.2024]
+- [ ] Razširitev JSON izvoza:
+  - [ ] Dodajanje segmentov v izvoz
+  - [ ] Dodajanje vprašanj v izvoz
+  - [ ] Dodajanje odgovorov v izvoz
+  - [ ] Dodajanje serijskih številk v izvoz
+  - [ ] Implementacija filtriranja podatkov za izvoz
+  - [ ] Dodajanje možnosti za izbiro podatkov za izvoz
+  - [ ] Implementacija validacije uvoženih podatkov
+  - [ ] Optimizacija izvoza za velike projekte
+
 ## Prioritete (posodobljeno 16.4.2024)
 1. Implementacija prikaza vprašanj in segmentov v kontrolnem seznamu
 2. Implementacija shranjevanja odgovorov
@@ -375,3 +394,11 @@ Trenutno stanje:
 
 
 Zadnji commit: 78b9873 (Dodana batch_create metoda za shranjevanje več odgovorov naenkrat) 
+
+## Izboljšave uvoza/izvoza
+- [ ] Implementacija uvoza projektov iz JSON datoteke
+- [ ] Validacija podatkov pri uvozu
+- [ ] Preverjanje obstoječih projektov in serijskih številk
+- [ ] Možnost izbire, katere podatke uvoziti
+- [ ] Optimizacija uvoza za velike projekte
+- [ ] Dodajanje metapodatkov pri uvozu (datum uvoza, uporabnik, itd.)

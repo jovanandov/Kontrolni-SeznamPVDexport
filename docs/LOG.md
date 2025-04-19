@@ -53,3 +53,60 @@
 Watching for file changes with StatReloader
 Performing system checks...
 [... celotni logi ...] 
+```
+
+## 18.4.2024
+
+### Pomembni dogodki
+1. **Implementacija batch_create metode** (commit: 78b9873):
+   - Dodana metoda za shranjevanje več odgovorov naenkrat
+   - Uspešno testiranje shranjevanja celotnega segmenta
+   - Opaženo: daljši čas shranjevanja pri večjem številu odgovorov
+
+2. **Filtriranje segmentov po tipu projekta**:
+   - Dodan get_queryset v SegmentViewSet
+   - Implementirano filtriranje preko tip_id parametra
+   - Endpoint: /api/segmenti/?tip_id=X
+
+3. **Izboljšave avtentikacije**:
+   - Dodano boljše rokovanje s CSRF žetoni
+   - Implementirano osveževanje žetonov
+   - Dodano preverjanje avtentikacije pred ustvarjanjem projekta
+
+### Opažene težave
+1. **Performanca shranjevanja**:
+   - Počasno shranjevanje večjega števila odgovorov
+   - Potrebna optimizacija batch_create metode
+   - Možne rešitve: indeksiranje, asinhorno shranjevanje
+
+2. **Izvoz projektov**:
+   - Trenutno samo osnovni podatki v JSON izvozu
+   - Manjkajo segmenti, vprašanja in odgovori
+   - Načrtovana razširitev funkcionalnosti
+
+### Načrtovane izboljšave
+1. Optimizacija shranjevanja odgovorov:
+   - Dodajanje indikatorja nalaganja
+   - Implementacija asinhronega shranjevanja
+   - Optimizacija podatkovne baze
+
+2. Razširitev JSON izvoza:
+   - Dodajanje segmentov
+   - Dodajanje vprašanj
+   - Dodajanje odgovorov
+   - Dodajanje serijskih številk
+
+### Celotni logi
+```
+[Celotni logi od 18.4.2024]
+Watching for file changes with StatReloader
+Performing system checks...
+[... celotni logi ...] 
+```
+
+## 19.4.2025
+- Implementiran izvoz projektov v JSON format
+- Popravljena napaka pri izvozu odgovorov (odstranjen neobstoječi atribut 'opombe')
+- Dodana podpora za beleženje uporabnika, ki je vnesel odgovor
+- Uspešno testiran izvoz projekta z vsemi povezanimi podatki
+- Naslednji korak: Implementacija uvoza projektov iz JSON datoteke 

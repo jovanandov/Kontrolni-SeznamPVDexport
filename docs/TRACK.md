@@ -183,3 +183,49 @@ Trenutno stanje:
 ### Naslednji koraki
 - Implementacija masovnega vnosa besedilnih odgovorov
 - Izboljšave uporabniške izkušnje pri masovnem vnosu
+
+## 19. april 2025
+
+### Commit: 78b9873
+- Dodana batch_create metoda za shranjevanje več odgovorov naenkrat
+- Implementirano filtriranje segmentov po tipu projekta
+- Izboljšano rokovanje s CSRF žetoni in avtentikacijo
+- Posodobljena dokumentacija v README.md in TODO.md
+
+### Opažene težave
+- Počasno shranjevanje večjega števila odgovorov
+- Potrebna optimizacija batch_create metode
+- Trenutno v JSON izvozu manjkajo segmenti, vprašanja in odgovori
+
+### Naslednji koraki
+- Implementacija optimizacije shranjevanja odgovorov:
+  - Dodajanje indikatorja nalaganja
+  - Implementacija asinhronega shranjevanja
+  - Optimizacija podatkovne baze
+- Razširitev JSON izvoza:
+  - Dodajanje segmentov
+  - Dodajanje vprašanj in odgovorov
+  - Dodajanje serijskih številk
+
+### API Dostopi in Logi
+```
+[19/Apr/2025 11:34:56] Uspešni dostopi do:
+- GET /api/projekti/
+- GET /api/segmenti/?tip_id=12&projekt_id=1
+- GET /api/segmenti/{id}/vprasanja/
+- GET /api/odgovori/?serijska_stevilka={id}
+```
+
+## 19.4.2025
+### Izvoz projektov
+- Implementiran izvoz projektov v JSON format
+- Struktura izvoza vključuje:
+  - Osnovne podatke o projektu
+  - Tipe projektov in število ponovitev
+  - Segmente in vprašanja
+  - Serijske številke
+  - Odgovore z informacijami o uporabniku
+  - Zgodovino sprememb
+- Popravljena napaka pri izvozu odgovorov
+- Uspešno testiran izvoz projekta 1
+- Naslednji korak: Implementacija uvoza projektov

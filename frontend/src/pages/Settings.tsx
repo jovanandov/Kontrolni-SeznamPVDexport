@@ -861,15 +861,24 @@ const Settings: React.FC = () => {
 
   const handleExportProjects = async () => {
     try {
-      const blob = await exportProjectsToJson();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'projekti.json';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      if (selectedProjects.length === 0) {
+        toast.error('Izberite vsaj en projekt za izvoz');
+        return;
+      }
+
+      // Izvozi vsak izbran projekt posebej
+      for (const projectId of selectedProjects) {
+        const blob = await exportProjectsToJson(projectId);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `projekt_${projectId}_arhiv.json`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+      
       toast.success('Projekti uspešno izvoženi');
     } catch (error) {
       console.error('Napaka pri izvozu projektov:', error);

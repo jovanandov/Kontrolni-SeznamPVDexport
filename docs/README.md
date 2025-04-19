@@ -45,6 +45,8 @@ Aplikacija za upravljanje kontrolnih seznamov, razvita z uporabo Vite (React) za
    cd backend
    python3 manage.py migrate
    python3 manage.py runserver 0.0.0.0:8000
+
+   (cd backend && python manage.py runserver 0.0.0.0:8000)
    ```
 
 2. Frontend:
@@ -52,6 +54,8 @@ Aplikacija za upravljanje kontrolnih seznamov, razvita z uporabo Vite (React) za
    cd frontend
    npm install
    npm run dev
+
+   (cd frontend && npm run dev)
    ```
 
 ## Dostop
@@ -530,36 +534,44 @@ interface Odgovor {
 
 ## 📦 Shranjevanje
 
-### JSON Format
-```json
-{
-  "projekt": "123",
-  "osebna_stevilka": "456",
-  "tip": "Tip1",
-  "datum": "2024-03-20",
-  "napredek": {
-    "segment1": {
-      "vprasanja": [
-        {
-          "id": 1,
-          "vprasanje": "Vprasanje 1",
-          "repeatability": true,
-          "odgovori": [
-            {"serijska_stevilka": "123-1", "odgovor": "Da"},
-            {"serijska_stevilka": "123-2", "odgovor": "Ne"}
-          ]
-        }
-      ]
-    }
-  }
-}
-```
+### Batch Create
+Aplikacija podpira masovno shranjevanje odgovorov preko `batch_create` metode. Ta funkcionalnost omogoča:
+- Shranjevanje več odgovorov naenkrat
+- Validacijo vseh odgovorov pred shranjevanjem
+- Transakcijsko shranjevanje (vse ali nič)
+- Optimizirano delovanje za večje količine podatkov
+
+### Optimizacije
+- ⏳ Indikator nalaganja med shranjevanjem
+- ⏳ Asinhrono shranjevanje v ozadju
+- ⏳ Optimizacija podatkovne baze z indeksi
+- ⏳ Paginated batch save za velike količine podatkov
+
+### JSON Izvoz
+Projekte lahko izvozite v JSON format preko nastavitev projekta. Trenutno izvoz vsebuje:
+- Osnovne informacije o projektu (ID, osebna številka, datum)
+- Informacije o tipih projekta in številu ponovitev
+
+V prihodnosti bo izvoz vseboval tudi:
+- Segmente
+- Vprašanja
+- Odgovore
+- Serijske številke
+
+To bo omogočilo popoln izvoz projekta z vsemi povezanimi podatki za:
+- Arhiviranje
+- Varnostno kopiranje
+- Prenos projektov med sistemi
+- Analizo podatkov
 
 ### Direktoriji
 - Ločeni direktoriji za:
   - JSON datoteke
   - XLSX/PDF izvoze
 - Samodejno ustvarjanje map po številki projekta
+### Commit hash sledenje
+- Zadnji commit: `78b9873` (19.4.2024: Dodana batch_create metoda za shranjevanje več odgovorov naenkrat)
+- Predzadnji commit: `eb74369` (18.4.2024: Implementirane izboljšave kontrolnega seznama)
 
 ## 🔄 Funkcionalnosti
 
@@ -822,20 +834,22 @@ Sistem omogoča dva načina vnosa odgovorov:
 
 ---
 
-## Izvoz projektov
+## Izvoz in uvoz projektov
 
-Projekte lahko izvozite v JSON format preko nastavitev projekta. Trenutno izvoz vsebuje:
+### Izvoz projektov
+Projekte lahko izvozite v JSON format preko nastavitev projekta. Izvoz vsebuje:
 - Osnovne informacije o projektu (ID, osebna številka, datum)
 - Informacije o tipih projekta in številu ponovitev
-
-V prihodnosti bo izvoz vseboval tudi:
-- Segmente
-- Vprašanja
-- Odgovore
+- Segmente in vprašanja
 - Serijske številke
+- Odgovore z informacijami o uporabniku, ki jih je vnesel
+- Zgodovino sprememb
 
-To bo omogočilo popoln izvoz projekta z vsemi povezanimi podatki za:
-- Arhiviranje
-- Varnostno kopiranje
-- Prenos projektov med sistemi
-- Analizo podatkov 
+### Uvoz projektov (v pripravi)
+V prihodnosti bo sistem podpiral:
+- Uvoz projektov iz JSON datoteke
+- Validacijo podatkov pri uvozu
+- Preverjanje obstoječih projektov in serijskih številk
+- Izbiranje, katere podatke uvoziti
+- Optimizacijo uvoza za velike projekte
+- Dodajanje metapodatkov pri uvozu 

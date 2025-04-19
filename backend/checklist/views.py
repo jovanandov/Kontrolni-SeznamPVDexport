@@ -22,6 +22,8 @@ import io
 from django.http import HttpResponse
 from django.db import transaction
 import json
+from django.utils import timezone
+from django.db.models import Q
 
 # Create your views here.
 
@@ -187,6 +189,151 @@ class ProjektViewSet(viewsets.ModelViewSet):
     queryset = Projekt.objects.all()
     serializer_class = ProjektSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    @action(detail=True, methods=['GET'], url_path='export-archive')
+    def export_archive(self, request, pk=None):
+        """Izvozi celoten projekt v arhivski JSON format."""
+        try:
+            print(f"Začenjam izvoz projekta {pk}")
+            projekt = self.get_object()
+            print(f"Projekt najden: {projekt.id}")
+            
+            # Osnovni podatki o izvozu
+            export_data = {
+                "meta": {
+                    "version": "1.0.0",
+                    "export_date": timezone.now().isoformat(),
+                    "application": "Kontrolni Seznam",
+                },
+                "projekt": {
+                    "id": projekt.id,
+                    "osebna_stevilka": projekt.osebna_stevilka,
+                    "datum": projekt.datum.isoformat(),
+                    "created_at": projekt.created_at.isoformat(),
+                    "updated_at": projekt.updated_at.isoformat(),
+                },
+                "tipi": [],
+                "segmenti": [],
+                "serijske_stevilke": [],
+                "odgovori": [],
+                "spremembe": []
+            }
+            
+            print("Dodajam podatke o tipih")
+            # Dodaj podatke o tipih
+            for projekt_tip in projekt.projekt_tipi.all():
+                print(f"Obdelujem tip: {projekt_tip.tip.id}")
+                tip_data = {
+                    "id": projekt_tip.tip.id,
+                    "naziv": projekt_tip.tip.naziv,
+                    "stevilo_ponovitev": projekt_tip.stevilo_ponovitev,
+                    "created_at": projekt_tip.created_at.isoformat(),
+                }
+                export_data["tipi"].append(tip_data)
+                
+                print(f"Dodajam segmente za tip {projekt_tip.tip.id}")
+                # Dodaj segmente za ta tip
+                for segment in Segment.objects.filter(tip=projekt_tip.tip):
+                    print(f"Obdelujem segment: {segment.id}")
+                    segment_data = {
+                        "id": segment.id,
+                        "naziv": segment.naziv,
+                        "tip_id": segment.tip.id,
+                        "vprasanja": []
+                    }
+                    
+                    # Dodaj vprašanja za segment
+                    for vprasanje in segment.vprasanja.all():
+                        print(f"Obdelujem vprašanje: {vprasanje.id}")
+                        vprasanje_data = {
+                            "id": vprasanje.id,
+                            "vprasanje": vprasanje.vprasanje,
+                            "tip": vprasanje.tip,
+                            "obvezno": vprasanje.obvezno,
+                            "opis": vprasanje.opis,
+                            "moznosti": vprasanje.moznosti,
+                            "repeatability": vprasanje.repeatability
+                        }
+                        segment_data["vprasanja"].append(vprasanje_data)
+                    
+                    export_data["segmenti"].append(segment_data)
+            
+            print("Dodajam serijske številke")
+            # Dodaj serijske številke
+            for st in projekt.serijske_stevilke.all():
+                print(f"Obdelujem serijsko številko: {st.id}")
+                st_data = {
+                    "id": st.id,
+                    "stevilka": st.stevilka,
+                    "tip_id": st.projekt_tip.tip.id,
+                    "created_at": st.created_at.isoformat()
+                }
+                export_data["serijske_stevilke"].append(st_data)
+                
+                print(f"Dodajam odgovore za serijsko številko {st.id}")
+                # Dodaj odgovore za to serijsko številko
+                for odgovor in st.odgovori.all():
+                    print(f"Obdelujem odgovor: {odgovor.id}")
+                    odgovor_data = {
+                        "id": odgovor.id,
+                        "vprasanje_id": odgovor.vprasanje.id,
+                        "serijska_stevilka_id": st.id,
+                        "odgovor": odgovor.odgovor,
+                        "created_at": odgovor.created_at.isoformat(),
+                        "updated_at": odgovor.updated_at.isoformat()
+                    }
+                    
+                    # Pridobi podatke o uporabniku iz LogSprememb
+                    log = LogSprememb.objects.filter(
+                        sprememba__contains=f"odgovor_{odgovor.id}"
+                    ).order_by('-cas').first()
+                    
+                    if log:
+                        odgovor_data["uporabnik"] = {
+                            "osebna_stevilka": log.uporabnik.username,
+                            "ime": log.uporabnik.first_name,
+                            "priimek": log.uporabnik.last_name
+                        }
+                    
+                    export_data["odgovori"].append(odgovor_data)
+            
+            print("Dodajam zgodovino sprememb")
+            # Dodaj zgodovino sprememb
+            for log in LogSprememb.objects.filter(
+                Q(sprememba__contains=f"projekt_{projekt.id}") |
+                Q(sprememba__contains=f"serijska_stevilka_{','.join(str(ss.id) for ss in projekt.serijske_stevilke.all())}")
+            ):
+                print(f"Obdelujem log: {log.id}")
+                log_data = {
+                    "id": log.id,
+                    "cas": log.cas.isoformat(),
+                    "sprememba": log.sprememba,
+                    "stara_vrednost": log.stara_vrednost,
+                    "nova_vrednost": log.nova_vrednost,
+                    "uporabnik": log.uporabnik.username
+                }
+                export_data["spremembe"].append(log_data)
+            
+            print("Ustvarjam JSON response")
+            # Ustvari JSON response
+            response = HttpResponse(
+                json.dumps(export_data, indent=2, ensure_ascii=False),
+                content_type='application/json'
+            )
+            
+            # Generiraj ime datoteke
+            filename = f"Projekt_{projekt.id}_arhiv_{timezone.now().strftime('%Y%m%d_%H%M%S')}.json"
+            filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.'))
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            print("Izvoz uspešno zaključen")
+            return response
+            
+        except Exception as e:
+            print(f"Napaka pri izvozu: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            return Response({'error': str(e)}, status=500)
 
     @action(detail=False, methods=['GET'], url_path='export-json')
     def export_json(self, request):
