@@ -822,3 +822,20 @@ Sistem omogoča dva načina vnosa odgovorov:
 
 ---
 
+## Izvoz projektov
+
+Projekte lahko izvozite v JSON format preko nastavitev projekta. Trenutno izvoz vsebuje:
+- Osnovne informacije o projektu (ID, osebna številka, datum)
+- Informacije o tipih projekta in številu ponovitev
+
+V prihodnosti bo izvoz vseboval tudi:
+- Segmente
+- Vprašanja
+- Odgovore
+- Serijske številke
+
+To bo omogočilo popoln izvoz projekta z vsemi povezanimi podatki za:
+- Arhiviranje
+- Varnostno kopiranje
+- Prenos projektov med sistemi
+- Analizo podatkov 

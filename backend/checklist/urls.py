@@ -26,4 +26,5 @@ urlpatterns = [
     path('auth/change-password/', ChangePasswordView.as_view(), name='change-password'),
     path('auth/csrf/', CsrfView.as_view(), name='csrf'),
     path('auth/user/', UserView.as_view(), name='user'),
+    path('segmenti/<int:pk>/vprasanja/', SegmentViewSet.as_view({'get': 'vprasanja'}), name='segment-vprasanja'),
 ] 

@@ -204,8 +204,11 @@ export interface SerijskaStevilka {
   created_at: string;
 }
 
-export const getSerijskeStevilke = async (projektId: string): Promise<SerijskaStevilka[]> => {
-  const response = await axiosInstance.get<SerijskaStevilka[]>(`/serijske-stevilke/?projekt=${projektId}`);
+export const getSerijskeStevilke = async (projektId: string, tipId?: number): Promise<SerijskaStevilka[]> => {
+  const url = tipId 
+    ? `/serijske-stevilke/?projekt=${projektId}&tip_id=${tipId}`
+    : `/serijske-stevilke/?projekt=${projektId}`;
+  const response = await axiosInstance.get<SerijskaStevilka[]>(url);
   return response.data;
 };
 
@@ -236,8 +239,8 @@ export interface Odgovor {
 }
 
 // Segmenti in vprašanja
-export const getSegmenti = async (tipId: number): Promise<Segment[]> => {
-  const response = await axiosInstance.get(`/segmenti/?tip_id=${tipId}`);
+export const getSegmenti = async (tipId: number, projektId: string): Promise<Segment[]> => {
+  const response = await axiosInstance.get(`/segmenti/?tip_id=${tipId}&projekt_id=${projektId}`);
   return response.data;
 };
 
@@ -246,9 +249,19 @@ export const getSegment = async (id: number): Promise<Segment> => {
   return response.data;
 };
 
-export const getVprasanja = async (tipId: number): Promise<Vprasanje[]> => {
-  const response = await axiosInstance.get(`/vprasanja/?tip_id=${tipId}`);
-  return response.data;
+export const getVprasanja = async (tipId: number, projektId: string): Promise<Vprasanje[]> => {
+  // Najprej pridobimo segmente za ta tip in projekt
+  const segmenti = await getSegmenti(tipId, projektId);
+  
+  // Nato pridobimo vprašanja za vsak segment
+  const vprasanjaPromises = segmenti.map(segment => 
+    axiosInstance.get(`/segmenti/${segment.id}/vprasanja/?tip_id=${tipId}&projekt_id=${projektId}`)
+  );
+  
+  const vprasanjaResponses = await Promise.all(vprasanjaPromises);
+  const vprasanja = vprasanjaResponses.flatMap(response => response.data);
+  
+  return vprasanja;
 };
 
 // Odgovori
@@ -345,7 +358,7 @@ export const changePassword = async (oldPassword: string, newPassword: string): 
 };
 
 export const downloadTemplateXlsx = async (tipId: number) => {
-  const response = await axiosInstance.get(`/api/tipi/${tipId}/download-template/`, {
+  const response = await axiosInstance.get(`/tipi/${tipId}/download-template/`, {
     responseType: 'blob'
   });
   

@@ -322,6 +322,37 @@ Trenutno stanje:
 - [ ] Zmanjšanje velikosti bundle-a
 - [ ] Optimizacija slik in medijev
 
+Optimizacija shranjevanje odgovorov 
+- Odlično, da funkcionira! Da, shranjevanje več odgovorov naenkrat lahko traja nekaj časa, še posebej če je veliko odgovorov v enem segmentu.
+Za optimizacijo bi lahko razmislili o naslednjih izboljšavah:
+Dodajanje indikatorja nalaganja:
+Prikazati "Shranjevanje..." obvestilo medtem ko se odgovori shranjujejo
+To bi uporabniku dalo boljšo povratno informacijo
+Optimizacija baze:
+Dodajanje indeksov za pogoste poizvedbe
+Batch shranjevanje v transakciji (kar že imamo)
+Asinhrono shranjevanje:
+Implementacija shranjevanja v ozadju
+Uporabnik lahko nadaljuje z delom medtem ko se odgovori shranjujejo
+Paginacija odgovorov:
+Shranjevanje odgovorov v manjših skupinah
+To bi zmanjšalo obremenitev strežnika
+Če želite, lahko implementiramo katero od teh izboljšav. Katera bi bila za vas najbolj uporabna?
+
+
+## Izboljšave izvoza JSON
+- [ ] Razširi izvoz JSON da vključuje:
+  - Segmente
+  - Vprašanja
+  - Odgovore
+  - Serijske številke
+- [ ] Implementiraj validacijo uvoženih podatkov
+- [ ] Dodaj možnost izbire, katere podatke želimo izvoziti
+- [ ] Optimiziraj izvoz za velike projekte
+
+Zadnji commit: 78b9873 (Dodana batch_create metoda za shranjevanje več odgovorov naenkrat) 
+
+
 ## Vzdrževanje
 - [ ] Redno varnostno kopiranje
 - [ ] Monitoring sistema
@@ -342,5 +373,5 @@ Trenutno stanje:
 ### .gitignore
 // ... existing code ...
 
-testni porjekt Kontrolni seznam
-Projekt: 3 - Število ponovitev: 8 tip igralno mesto charizma
+
+Zadnji commit: 78b9873 (Dodana batch_create metoda za shranjevanje več odgovorov naenkrat) 

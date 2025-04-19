@@ -30,8 +30,8 @@ class TipViewSet(viewsets.ModelViewSet):
     serializer_class = TipSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    @action(detail=False, methods=['GET'], url_path='download-template')
-    def download_template(self, request):
+    @action(detail=True, methods=['GET'], url_path='download-template')
+    def download_template(self, request, pk=None):
         """Prenesi vzorčno XLSX datoteko za uvoz vprašanj."""
         # Ustvarimo vzorčne podatke
         data = {
@@ -304,96 +304,123 @@ class ProjektViewSet(viewsets.ModelViewSet):
     def export_xlsx(self, request, pk=None):
         """Izvozi odgovore projekta v XLSX format."""
         try:
-            # 1. Pridobi projekt in preveri, če obstaja
+            # 1. Pridobi projekt in njegove podatke
             projekt = self.get_object()
-            print(f"Izvažam projekt {projekt.id}")
-            
-            # 2. Pridobi projekt_tip in preveri, če obstaja
             projekt_tip = projekt.projekt_tipi.first()
             if not projekt_tip:
                 return Response({'error': 'Projekt nima določenega tipa'}, status=400)
-            
-            # 3. Pridobi serijske številke
+
+            # 2. Pridobi serijske številke
             serijske_stevilke = SerijskaStevilka.objects.filter(projekt=projekt)
             if not serijske_stevilke.exists():
                 return Response({'error': 'Projekt nima serijskih številk'}, status=400)
-            
-            # 4. Pridobi segmente
+
+            # 3. Pridobi segmente
             segmenti = Segment.objects.filter(tip_id=projekt_tip.tip.id)
             if not segmenti.exists():
                 return Response({'error': 'Ni najdenih segmentov za ta tip projekta'}, status=400)
-            
-            # 5. Ustvari Excel datoteko
+
+            # 4. Ustvari Excel datoteko
             excel_file = io.BytesIO()
+            writer = pd.ExcelWriter(excel_file, engine='openpyxl')
+
+            # 5. Pripravi podatke
+            data = []
             
-            try:
-                with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
-                    for segment in segmenti:
-                        # Pridobi vprašanja za segment
-                        vprasanja = Vprasanje.objects.filter(segment=segment)
-                        if not vprasanja.exists():
-                            continue
-                        
-                        # Pripravi podatke za DataFrame
-                        data = []
-                        for vprasanje in vprasanja:
-                            for st in serijske_stevilke:
-                                odgovor = Odgovor.objects.filter(
-                                    vprasanje=vprasanje,
-                                    serijska_stevilka=st
-                                ).first()
-                                
-                                data.append({
-                                    'Serijska številka': st.stevilka,
-                                    'Vprašanje': vprasanje.vprasanje,
-                                    'Odgovor': odgovor.odgovor if odgovor else '',
-                                    'Opomba': odgovor.opomba if odgovor and odgovor.opomba else '',
-                                    'Obvezno': 'Da' if vprasanje.obvezno else 'Ne',
-                                    'Tip vprašanja': vprasanje.tip
-                                })
-                        
-                        if data:
-                            # Ustvari DataFrame
-                            df = pd.DataFrame(data)
-                            
-                            # Očisti ime zavihka
-                            sheet_name = segment.naziv[:31]
-                            sheet_name = "".join(c for c in sheet_name if c.isalnum() or c in (' ', '-', '_'))
-                            if not sheet_name:
-                                sheet_name = f"Segment_{segment.id}"
-                            
-                            # Zapiši v Excel
-                            df.to_excel(writer, sheet_name=sheet_name, index=False)
-                            
-                            # Prilagodi širino stolpcev
-                            worksheet = writer.sheets[sheet_name]
-                            for idx, col in enumerate(df.columns):
-                                max_length = max(
-                                    df[col].astype(str).apply(len).max(),
-                                    len(str(col))
-                                )
-                                worksheet.column_dimensions[chr(65 + idx)].width = max_length + 2
-            
-            except Exception as e:
-                print(f"Napaka pri ustvarjanju Excel datoteke: {str(e)}")
-                return Response({'error': 'Napaka pri ustvarjanju Excel datoteke'}, status=500)
-            
-            # 6. Pripravi response
+            # Glava dokumenta
+            header = {
+                'Projekt': f"{projekt.id} - {projekt_tip.tip.naziv}",
+                'Datum': projekt.datum,
+                'Osebna številka': projekt.osebna_stevilka,
+                'Število ponovitev': projekt_tip.stevilo_ponovitev
+            }
+
+            # Za vsako serijsko številko
+            for st in serijske_stevilke:
+                # Dodaj serijsko številko
+                data.append({
+                    'Serijska številka': st.stevilka,
+                    'Vprašanje': '',
+                    'Odgovor': '',
+                    'Datum odgovora': '',
+                    'Segment': ''
+                })
+
+                # Za vsak segment
+                for segment in segmenti:
+                    # Dodaj ime segmenta
+                    data.append({
+                        'Serijska številka': '',
+                        'Vprašanje': '',
+                        'Odgovor': '',
+                        'Datum odgovora': '',
+                        'Segment': segment.naziv
+                    })
+
+                    # Dodaj vprašanja in odgovore
+                    for vprasanje in Vprasanje.objects.filter(segment=segment):
+                        odgovor = Odgovor.objects.filter(
+                            vprasanje=vprasanje,
+                            serijska_stevilka=st
+                        ).first()
+
+                        data.append({
+                            'Serijska številka': '',
+                            'Vprašanje': vprasanje.vprasanje,
+                            'Odgovor': odgovor.odgovor if odgovor else '',
+                            'Datum odgovora': odgovor.created_at.strftime('%Y-%m-%d %H:%M:%S') if odgovor else '',
+                            'Segment': ''
+                        })
+
+                # Dodaj prazno vrstico med serijskimi številkami
+                data.append({
+                    'Serijska številka': '',
+                    'Vprašanje': '',
+                    'Odgovor': '',
+                    'Datum odgovora': '',
+                    'Segment': ''
+                })
+
+            # 6. Ustvari DataFrame in zapiši v Excel
+            df = pd.DataFrame(data)
+
+            # Dodaj glavo kot prvo vrstico
+            header_df = pd.DataFrame([header])
+            header_df.to_excel(writer, sheet_name='Kontrolni seznam', index=False)
+
+            # Dodaj prazno vrstico
+            pd.DataFrame().to_excel(writer, sheet_name='Kontrolni seznam', startrow=2, index=False)
+
+            # Dodaj podatke
+            df.to_excel(writer, sheet_name='Kontrolni seznam', startrow=3, index=False)
+
+            # Prilagodi širino stolpcev
+            worksheet = writer.sheets['Kontrolni seznam']
+            for idx, col in enumerate(df.columns):
+                max_length = max(
+                    df[col].astype(str).apply(len).max(),
+                    len(str(col))
+                )
+                worksheet.column_dimensions[chr(65 + idx)].width = max_length + 2
+
+            # Shrani Excel
+            writer.close()
             excel_file.seek(0)
-            
+
+            # 7. Pripravi response
             response = HttpResponse(
                 excel_file.read(),
                 content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             )
-            
+
             # Ustvari ime datoteke
             filename = f"Projekt_{projekt.id}_{projekt_tip.tip.naziv}_{projekt.datum}.xlsx"
             filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.'))
-            
+
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
-            
+
             return response
-            
+
         except Exception as e:
             print(f"Napaka pri izvozu: {str(e)}")
             import traceback
@@ -405,10 +432,31 @@ class SegmentViewSet(viewsets.ModelViewSet):
     serializer_class = SegmentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        queryset = Segment.objects.all()
+        tip_id = self.request.query_params.get('tip_id', None)
+        projekt_id = self.request.query_params.get('projekt_id', None)
+        
+        if projekt_id is not None:
+            # Najprej poiščemo tip projekta
+            projekt_tip = ProjektTip.objects.filter(
+                projekt_id=projekt_id
+            ).first()
+            
+            if projekt_tip:
+                # Filtriramo segmente samo za ta tip
+                queryset = queryset.filter(tip_id=projekt_tip.tip_id)
+        elif tip_id is not None:
+            # Če nimamo projekt_id, filtriramo samo po tip_id
+            queryset = queryset.filter(tip_id=tip_id)
+        
+        return queryset
+
     @action(detail=True, methods=['get'])
     def vprasanja(self, request, pk=None):
+        """Vrni vprašanja za segment."""
         segment = self.get_object()
-        vprasanja = segment.vprasanja.all()
+        vprasanja = Vprasanje.objects.filter(segment=segment)
         serializer = VprasanjeSerializer(vprasanja, many=True)
         return Response(serializer.data)
 
@@ -417,10 +465,44 @@ class VprasanjeViewSet(viewsets.ModelViewSet):
     serializer_class = VprasanjeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        queryset = Vprasanje.objects.all()
+        tip_id = self.request.query_params.get('tip_id', None)
+        projekt_id = self.request.query_params.get('projekt_id', None)
+        
+        if tip_id is not None:
+            queryset = queryset.filter(segment__tip_id=tip_id)
+            
+        if projekt_id is not None:
+            # Pridobi tip projekta
+            projekt_tip = ProjektTip.objects.filter(
+                projekt_id=projekt_id,
+                tip_id=tip_id
+            ).first()
+            
+            if projekt_tip:
+                queryset = queryset.filter(segment__tip_id=projekt_tip.tip_id)
+        
+        return queryset
+
     @action(detail=True, methods=['get'])
     def odgovori(self, request, pk=None):
         vprasanje = self.get_object()
+        tip_id = self.request.query_params.get('tip_id', None)
+        projekt_id = self.request.query_params.get('projekt_id', None)
+        
         odgovori = vprasanje.odgovori.all()
+        
+        if projekt_id is not None:
+            odgovori = odgovori.filter(
+                serijska_stevilka__projekt_id=projekt_id
+            )
+            
+        if tip_id is not None:
+            odgovori = odgovori.filter(
+                serijska_stevilka__projekt_tip__tip_id=tip_id
+            )
+            
         serializer = OdgovorSerializer(odgovori, many=True)
         return Response(serializer.data)
 
@@ -428,6 +510,24 @@ class SerijskaStevilkaViewSet(viewsets.ModelViewSet):
     queryset = SerijskaStevilka.objects.all()
     serializer_class = SerijskaStevilkaSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = SerijskaStevilka.objects.all()
+        projekt_id = self.request.query_params.get('projekt', None)
+        tip_id = self.request.query_params.get('tip_id', None)
+        
+        if projekt_id is not None:
+            queryset = queryset.filter(projekt_id=projekt_id)
+            
+            if tip_id is not None:
+                queryset = queryset.filter(projekt_tip__tip_id=tip_id)
+            else:
+                # Če tip_id ni podan, vzamemo tip iz ProjektTip
+                projekt_tip = ProjektTip.objects.filter(projekt_id=projekt_id).first()
+                if projekt_tip:
+                    queryset = queryset.filter(projekt_tip__tip_id=projekt_tip.tip_id)
+        
+        return queryset.order_by('id')
 
     @action(detail=True, methods=['get'])
     def odgovori(self, request, pk=None):
@@ -440,6 +540,22 @@ class OdgovorViewSet(viewsets.ModelViewSet):
     queryset = Odgovor.objects.all()
     serializer_class = OdgovorSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = Odgovor.objects.all()
+        serijska_stevilka_id = self.request.query_params.get('serijska_stevilka', None)
+        
+        if serijska_stevilka_id is not None:
+            # Pridobi serijsko številko
+            serijska_stevilka = SerijskaStevilka.objects.filter(id=serijska_stevilka_id).first()
+            if serijska_stevilka:
+                # Filtriraj odgovore po serijski številki in vprašanjih za ta tip projekta
+                queryset = queryset.filter(
+                    serijska_stevilka=serijska_stevilka,
+                    vprasanje__segment__tip=serijska_stevilka.projekt_tip.tip
+                )
+        
+        return queryset
 
     @action(detail=False, methods=['POST'], url_path='batch')
     def batch_create(self, request):

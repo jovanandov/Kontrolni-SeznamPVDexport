@@ -33,6 +33,8 @@ import {
   TableCell,
   DialogContentText,
   Checkbox,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -145,6 +147,9 @@ const Settings: React.FC = () => {
   const [projekti, setProjekti] = useState<any[]>([]);
   const [newProjektId, setNewProjektId] = useState('');
   const [steviloPonovitev, setSteviloPonovitev] = useState(1);
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const fetchData = async () => {
     try {
@@ -1069,25 +1074,82 @@ const Settings: React.FC = () => {
   );
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Paper sx={{ width: '100%', mb: 2 }}>
-        <Tabs value={value} onChange={handleChange}>
+    <Container maxWidth="lg" sx={{ py: 2 }}>
+      <Box sx={{ 
+        width: '100%',
+        mb: 3,
+        '.MuiTabs-root': {
+          maxWidth: '100%',
+          overflow: 'auto',
+          '&::-webkit-scrollbar': {
+            height: '6px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: theme.palette.background.paper,
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: theme.palette.primary.main,
+            borderRadius: '3px',
+          },
+        },
+      }}>
+        <Tabs
+          value={value}
+          onChange={handleChange}
+          variant="scrollable"
+          scrollButtons={isMobile ? "auto" : "auto"}
+          allowScrollButtonsMobile
+          sx={{
+            borderBottom: 1,
+            borderColor: 'divider',
+            mb: 2,
+          }}
+        >
           {getAvailableTabs().map((tab) => (
             <Tab
               key={tab.index}
               label={tab.label}
-              id={`settings-tab-${tab.index}`}
-              aria-controls={`settings-tabpanel-${tab.index}`}
+              sx={{
+                minWidth: isMobile ? 'auto' : 120,
+                px: isMobile ? 1 : 2,
+              }}
             />
           ))}
         </Tabs>
+      </Box>
 
-        {getAvailableTabs().map((tab) => (
-          <TabPanel key={tab.index} value={value} index={tab.index}>
-            {value === tab.index && getTabContent()}
-          </TabPanel>
-        ))}
-      </Paper>
+      <Box sx={{ 
+        overflowX: 'auto',
+        '& .MuiTableContainer-root': {
+          overflow: 'auto',
+        },
+        '& .MuiTable-root': {
+          minWidth: isMobile ? 300 : 650,
+        },
+        '& .MuiListItem-root': {
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'flex-start' : 'center',
+          '& .MuiListItemSecondaryAction-root': {
+            position: isMobile ? 'relative' : 'absolute',
+            transform: 'none',
+            top: isMobile ? 'auto' : '50%',
+            right: isMobile ? 0 : 16,
+            marginTop: isMobile ? 1 : 0,
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 1,
+            width: isMobile ? '100%' : 'auto',
+            justifyContent: isMobile ? 'flex-start' : 'flex-end',
+          },
+        },
+        '& .MuiGrid-container': {
+          '& .MuiGrid-item': {
+            width: '100%',
+          },
+        },
+      }}>
+        {getTabContent()}
+      </Box>
 
       <Dialog open={openDialog} onClose={handleCloseEditDialog}>
         <DialogTitle>Uredi tip</DialogTitle>

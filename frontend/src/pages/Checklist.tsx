@@ -70,6 +70,7 @@ const Checklist: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [isAtTop, setIsAtTop] = useState(true);
 
   useEffect(() => {
     const initializeChecklist = async () => {
@@ -100,15 +101,15 @@ const Checklist: React.FC = () => {
         
         // Pridobi segmente in vprašanja
         const [segmentiData, vprasanjaData] = await Promise.all([
-          getSegmenti(parseInt(tipId)),
-          getVprasanja(parseInt(tipId))
+          getSegmenti(parseInt(tipId), projektId),
+          getVprasanja(parseInt(tipId), projektId)
         ]);
         
         setSegments(segmentiData);
         setQuestions(vprasanjaData);
         
         // Pridobi ali ustvari serijske številke
-        const existingSerijskeStevilke = await getSerijskeStevilke(projektId);
+        const existingSerijskeStevilke = await getSerijskeStevilke(projektId, parseInt(tipId));
         if (existingSerijskeStevilke.length === 0) {
           // Ustvari nove serijske številke
           const newSerijskeStevilke = await Promise.all(
@@ -117,7 +118,6 @@ const Checklist: React.FC = () => {
             )
           );
           setSerijskeStevilke(newSerijskeStevilke);
-          // Za nove serijske številke ne naložimo odgovorov
           setAnswers({});
         } else {
           setSerijskeStevilke(existingSerijskeStevilke);
@@ -132,16 +132,21 @@ const Checklist: React.FC = () => {
           if (!isNewProject) {
             // Naloži obstoječe odgovore za vse serijske številke
             const allAnswers: { [key: string]: string } = {};
-            await Promise.all(existingSerijskeStevilke.map(async (stevilka) => {
-              const odgovori = await getOdgovori(stevilka.id);
+            const odgovoriPromises = existingSerijskeStevilke.map(stevilka => 
+              getOdgovori(stevilka.id)
+            );
+            
+            const odgovoriResults = await Promise.all(odgovoriPromises);
+            odgovoriResults.forEach((odgovori, index) => {
+              const stevilka = existingSerijskeStevilke[index];
               odgovori.forEach(odgovor => {
                 const odgovorKey = `${odgovor.vprasanje}-${stevilka.stevilka}`;
                 allAnswers[odgovorKey] = odgovor.odgovor;
               });
-            }));
+            });
+            
             setAnswers(allAnswers);
           } else {
-            // Za nove serijske številke ne naložimo odgovorov
             setAnswers({});
           }
         }
@@ -153,7 +158,17 @@ const Checklist: React.FC = () => {
     };
 
     initializeChecklist();
-  }, [projektId, tipId, stPonovitev]);
+  }, [projektId, tipId]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      setIsAtTop(scrollTop < 100); // 100px toleranca
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const getCurrentSegmentVprasanja = () => {
     if (!segments || activeStep === null) return [];
@@ -332,9 +347,10 @@ const Checklist: React.FC = () => {
               onClick={() => setDrawerOpen(true)}
               sx={{
                 position: 'fixed',
-                top: 16,
+                top: isAtTop ? 72 : 16,
                 left: 16,
-                zIndex: 1000
+                zIndex: 1000,
+                transition: 'top 0.3s ease'
               }}
             >
               <MenuIcon />
