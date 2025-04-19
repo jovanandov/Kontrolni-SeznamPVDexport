@@ -71,6 +71,7 @@ import {
   createProjekt,
 } from '../api/api';
 import FileUpload from '../components/FileUpload';
+import JsonFileUpload from '../components/JsonFileUpload';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 
@@ -843,9 +844,9 @@ const Settings: React.FC = () => {
     }
   };
 
-  const handleDeleteProjects = async () => {
+  const handleDeleteProjects = async (projectIds: string[]) => {
     try {
-      for (const projectId of selectedProjects) {
+      for (const projectId of projectIds) {
         await deleteProjekt(parseInt(projectId));
       }
       setDeleteDialogOpen(false);
@@ -892,11 +893,14 @@ const Settings: React.FC = () => {
 
   const handleImportProjects = async () => {
     if (!importFile) return;
+
     try {
       await importProjectsFromJson(importFile);
-      setImportFile(null);
       toast.success('Projekti uspešno uvoženi');
+      setImportFile(null);
+      fetchData();
     } catch (error) {
+      console.error('Napaka pri uvozu projektov:', error);
       toast.error('Napaka pri uvozu projektov');
     }
   };
@@ -940,145 +944,87 @@ const Settings: React.FC = () => {
   };
 
   const renderProjectsTab = () => (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h6" gutterBottom>
-        Upravljanje projektov
-      </Typography>
-      
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle1" gutterBottom>
-          Izvoz projektov
-        </Typography>
+    <Box>
+      <Box sx={{ mb: 2 }}>
         <Button
           variant="contained"
-          color="primary"
+          color="secondary"
           onClick={handleExportProjects}
-          startIcon={<DownloadIcon />}
+          sx={{ mr: 2 }}
+          disabled={selectedProjects.length === 0}
         >
-          Izvozi projekte v JSON
+          Izvozi projekte
         </Button>
-      </Box>
-
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle1" gutterBottom>
-          Uvoz projektov
-        </Typography>
-        <input
-          type="file"
-          accept=".json"
-          onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-          style={{ display: 'none' }}
-          id="import-file"
-        />
-        <label htmlFor="import-file">
-          <Button
-            variant="contained"
-            color="primary"
-            component="span"
-            startIcon={<UploadIcon />}
-          >
-            Izberi datoteko
-          </Button>
-        </label>
+        <JsonFileUpload onFileSelect={setImportFile} />
         {importFile && (
-          <Box sx={{ mt: 1 }}>
-            <Typography variant="body2">
+          <>
+            <Typography variant="body2" sx={{ mt: 1, mb: 1 }}>
               Izbrana datoteka: {importFile.name}
             </Typography>
             <Button
               variant="contained"
-              color="secondary"
+              color="primary"
               onClick={handleImportProjects}
-              sx={{ mt: 1 }}
             >
               Uvozi projekte
             </Button>
-          </Box>
+          </>
         )}
       </Box>
-
-      <Box>
-        <Typography variant="subtitle1" gutterBottom>
-          Seznam projektov
-        </Typography>
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell padding="checkbox">
+                <Checkbox
+                  indeterminate={selectedProjects.length > 0 && selectedProjects.length < projekti.length}
+                  checked={projekti.length > 0 && selectedProjects.length === projekti.length}
+                  onChange={(event) => {
+                    if (event.target.checked) {
+                      setSelectedProjects(projekti.map(p => p.id.toString()));
+                    } else {
+                      setSelectedProjects([]);
+                    }
+                  }}
+                />
+              </TableCell>
+              <TableCell>ID</TableCell>
+              <TableCell>Osebna številka</TableCell>
+              <TableCell>Datum</TableCell>
+              <TableCell>Akcije</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {projekti.map((projekt) => (
+              <TableRow key={projekt.id}>
                 <TableCell padding="checkbox">
                   <Checkbox
-                    indeterminate={selectedProjects.length > 0 && selectedProjects.length < projekti.length}
-                    checked={projekti.length > 0 && selectedProjects.length === projekti.length}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedProjects(projekti.map(p => p.id.toString()));
+                    checked={selectedProjects.includes(projekt.id.toString())}
+                    onChange={(event) => {
+                      if (event.target.checked) {
+                        setSelectedProjects([...selectedProjects, projekt.id.toString()]);
                       } else {
-                        setSelectedProjects([]);
+                        setSelectedProjects(selectedProjects.filter(id => id !== projekt.id.toString()));
                       }
                     }}
                   />
                 </TableCell>
-                <TableCell>ID</TableCell>
-                <TableCell>Osebna številka</TableCell>
-                <TableCell>Datum</TableCell>
-                <TableCell>Tip</TableCell>
+                <TableCell>{projekt.id}</TableCell>
+                <TableCell>{projekt.osebna_stevilka}</TableCell>
+                <TableCell>{projekt.datum}</TableCell>
+                <TableCell>
+                  <IconButton
+                    color="error"
+                    onClick={() => handleDeleteProjects([projekt.id.toString()])}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {projekti.map((projekt) => (
-                <TableRow key={projekt.id}>
-                  <TableCell padding="checkbox">
-                    <Checkbox
-                      checked={selectedProjects.includes(projekt.id.toString())}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedProjects([...selectedProjects, projekt.id.toString()]);
-                        } else {
-                          setSelectedProjects(selectedProjects.filter(id => id !== projekt.id.toString()));
-                        }
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>{projekt.id}</TableCell>
-                  <TableCell>{projekt.osebna_stevilka}</TableCell>
-                  <TableCell>{new Date(projekt.datum).toLocaleDateString('sl-SI')}</TableCell>
-                  <TableCell>{projekt.projekt_tipi?.[0]?.tip?.naziv || '-'}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        <Box sx={{ mt: 2 }}>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={() => setDeleteDialogOpen(true)}
-            disabled={selectedProjects.length === 0}
-            startIcon={<DeleteIcon />}
-          >
-            Izbriši izbrane projekte
-          </Button>
-        </Box>
-      </Box>
-
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-      >
-        <DialogTitle>Potrditev brisanja</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Ali ste prepričani, da želite izbrisati {selectedProjects.length} {selectedProjects.length === 1 ? 'projekt' : selectedProjects.length < 5 ? 'projekte' : 'projektov'}? To dejanje ni mogoče razveljaviti.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Prekliči</Button>
-          <Button onClick={handleDeleteProjects} color="error">
-            Izbriši
-          </Button>
-        </DialogActions>
-      </Dialog>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Box>
   );
 

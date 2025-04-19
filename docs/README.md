@@ -836,20 +836,30 @@ Sistem omogoča dva načina vnosa odgovorov:
 
 ## Izvoz in uvoz projektov
 
-### Izvoz projektov
-Projekte lahko izvozite v JSON format preko nastavitev projekta. Izvoz vsebuje:
-- Osnovne informacije o projektu (ID, osebna številka, datum)
-- Informacije o tipih projekta in številu ponovitev
-- Segmente in vprašanja
-- Serijske številke
-- Odgovore z informacijami o uporabniku, ki jih je vnesel
-- Zgodovino sprememb
+### Uvoz/Izvoz projektov
 
-### Uvoz projektov (v pripravi)
-V prihodnosti bo sistem podpiral:
-- Uvoz projektov iz JSON datoteke
-- Validacijo podatkov pri uvozu
-- Preverjanje obstoječih projektov in serijskih številk
-- Izbiranje, katere podatke uvoziti
-- Optimizacijo uvoza za velike projekte
-- Dodajanje metapodatkov pri uvozu 
+Aplikacija omogoča izvoz in uvoz projektov v JSON formatu. To je uporabno za:
+- Arhiviranje projektov
+- Prenos projektov med različnimi sistemi
+- Varnostno kopiranje podatkov
+
+#### Izvoz projektov
+- Izberite projekte za izvoz s potrditvenimi polji
+- Kliknite gumb "Izvozi projekte"
+- Prenesite JSON datoteko z vsemi podatki projekta
+
+#### Uvoz projektov
+- Kliknite gumb "Izberi datoteko" in izberite JSON datoteko
+- Kliknite gumb "Uvozi projekte"
+- Projekti bodo uvoženi s shranjenimi odgovori
+
+#### Posebnosti JSON formata
+- Shranjeni so vsi odgovori za vse serijske številke
+- Obdržan je originalni datum kreiranja projekta
+- Dodan je timestamp zadnje spremembe
+- Vključeni so vsi podatki o projektih, vključno z:
+  - Osnovnimi podatki projekta
+  - Tipi projektov
+  - Serijskimi številkami
+  - Segmenti in vprašanji
+  - Odgovori na vprašanja 

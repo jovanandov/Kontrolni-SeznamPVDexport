@@ -574,6 +574,96 @@ class ProjektViewSet(viewsets.ModelViewSet):
             print(traceback.format_exc())
             return Response({'error': str(e)}, status=500)
 
+    @action(detail=False, methods=['POST'], url_path='import-json')
+    def import_json(self, request):
+        """Uvozi projekte iz JSON datoteke."""
+        try:
+            if 'file' not in request.FILES:
+                return Response({'error': 'Ni datoteke'}, status=status.HTTP_400_BAD_REQUEST)
+
+            file = request.FILES['file']
+            data = json.load(file)
+
+            print("Prejeti JSON podatki:")
+            print(json.dumps(data, indent=2))
+
+            with transaction.atomic():
+                # Najprej preverimo, če projekt že obstaja
+                if Projekt.objects.filter(id=data['projekt']['id']).exists():
+                    return Response(
+                        {'error': f'Projekt {data["projekt"]["id"]} že obstaja'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                # Ustvarimo projekt z originalnimi časovnimi žigi
+                projekt = Projekt.objects.create(
+                    id=data['projekt']['id'],
+                    osebna_stevilka=data['projekt']['osebna_stevilka'],
+                    datum=data['projekt']['datum'].split('T')[0],  # Vzamemo samo datum
+                    created_at=data['projekt']['created_at'],
+                    updated_at=data['projekt']['updated_at']
+                )
+                print(f"Ustvarjen projekt: {projekt.id}")
+
+                # Slovar za sledenje serijskim številkam
+                serijske_stevilke_map = {}
+
+                # Dodamo tipe in serijske številke
+                for tip_data in data['tipi']:
+                    print(f"Dodajam tip: {tip_data}")
+                    projekt_tip = ProjektTip.objects.create(
+                        projekt=projekt,
+                        tip_id=tip_data['id'],
+                        stevilo_ponovitev=tip_data['stevilo_ponovitev'],
+                        created_at=tip_data['created_at']
+                    )
+
+                    # Dodamo serijske številke za ta tip
+                    for st_data in [s for s in data['serijske_stevilke'] if s['tip_id'] == tip_data['id']]:
+                        print(f"Dodajam serijsko številko: {st_data}")
+                        serijska = SerijskaStevilka.objects.create(
+                            projekt=projekt,
+                            projekt_tip=projekt_tip,
+                            stevilka=st_data['stevilka'],
+                            created_at=st_data['created_at']
+                        )
+                        # Shranimo preslikavo ID-jev
+                        serijske_stevilke_map[st_data['id']] = serijska
+
+                # Dodamo odgovore
+                for odgovor_data in data['odgovori']:
+                    print(f"Dodajam odgovor: {odgovor_data}")
+                    try:
+                        # Poiščemo serijsko številko iz preslikave
+                        serijska = serijske_stevilke_map[odgovor_data['serijska_stevilka_id']]
+                        
+                        Odgovor.objects.create(
+                            vprasanje_id=odgovor_data['vprasanje_id'],
+                            odgovor=odgovor_data['odgovor'],
+                            serijska_stevilka=serijska,
+                            created_at=odgovor_data['created_at'],
+                            updated_at=odgovor_data['updated_at']
+                        )
+                    except Exception as e:
+                        print(f"Napaka pri ustvarjanju odgovora: {str(e)}")
+                        raise
+
+                # Dodamo zapis v LogSprememb o uvozu
+                LogSprememb.objects.create(
+                    uporabnik=request.user,
+                    sprememba=f"projekt_{projekt.id}_uvoz",
+                    stara_vrednost="",
+                    nova_vrednost=f"Uvoženo iz arhiva {timezone.now().isoformat()}"
+                )
+
+            return Response({'message': 'Projekt uspešno uvožen'}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            print(f"Napaka pri uvozu: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 class SegmentViewSet(viewsets.ModelViewSet):
     queryset = Segment.objects.all()
     serializer_class = SegmentSerializer

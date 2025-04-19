@@ -229,3 +229,10 @@ Trenutno stanje:
 - Popravljena napaka pri izvozu odgovorov
 - Uspešno testiran izvoz projekta 1
 - Naslednji korak: Implementacija uvoza projektov
+
+## 2024-04-19
+- Implementirana funkcionalnost izvoza/uoza projektov v JSON formatu
+- Odstranjeno preverjanje starosti serijskih številk pri nalaganju odgovorov
+- Dodan timestamp zadnje spremembe pri izvozu
+- Obdržan originalni datum kreiranja projekta pri uvozu
+- Popravljena logika nalaganja odgovorov za vse serijske številke

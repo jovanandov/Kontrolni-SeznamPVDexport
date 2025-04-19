@@ -109,4 +109,11 @@ Performing system checks...
 - Popravljena napaka pri izvozu odgovorov (odstranjen neobstoječi atribut 'opombe')
 - Dodana podpora za beleženje uporabnika, ki je vnesel odgovor
 - Uspešno testiran izvoz projekta z vsemi povezanimi podatki
-- Naslednji korak: Implementacija uvoza projektov iz JSON datoteke 
+- Naslednji korak: Implementacija uvoza projektov iz JSON datoteke
+
+## 2024-04-19
+- [FEATURE] Implementirana funkcionalnost izvoza/uoza projektov v JSON formatu
+- [FIX] Odstranjeno preverjanje starosti serijskih številk pri nalaganju odgovorov
+- [FEATURE] Dodan timestamp zadnje spremembe pri izvozu
+- [FEATURE] Obdržan originalni datum kreiranja projekta pri uvozu
+- [FIX] Popravljena logika nalaganja odgovorov za vse serijske številke 

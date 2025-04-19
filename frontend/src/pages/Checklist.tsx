@@ -122,33 +122,22 @@ const Checklist: React.FC = () => {
         } else {
           setSerijskeStevilke(existingSerijskeStevilke);
           
-          // Naloži obstoječe odgovore samo če so serijske številke starejše od 1 minute
-          const now = new Date();
-          const isNewProject = existingSerijskeStevilke.some(stevilka => {
-            const createdDate = new Date(stevilka.created_at);
-            return (now.getTime() - createdDate.getTime()) < 60000; // 1 minuta
-          });
-
-          if (!isNewProject) {
-            // Naloži obstoječe odgovore za vse serijske številke
-            const allAnswers: { [key: string]: string } = {};
-            const odgovoriPromises = existingSerijskeStevilke.map(stevilka => 
-              getOdgovori(stevilka.id)
-            );
-            
-            const odgovoriResults = await Promise.all(odgovoriPromises);
-            odgovoriResults.forEach((odgovori, index) => {
-              const stevilka = existingSerijskeStevilke[index];
-              odgovori.forEach(odgovor => {
-                const odgovorKey = `${odgovor.vprasanje}-${stevilka.stevilka}`;
-                allAnswers[odgovorKey] = odgovor.odgovor;
-              });
+          // Naloži obstoječe odgovore za vse serijske številke
+          const allAnswers: { [key: string]: string } = {};
+          const odgovoriPromises = existingSerijskeStevilke.map(stevilka => 
+            getOdgovori(stevilka.id)
+          );
+          
+          const odgovoriResults = await Promise.all(odgovoriPromises);
+          odgovoriResults.forEach((odgovori, index) => {
+            const stevilka = existingSerijskeStevilke[index];
+            odgovori.forEach(odgovor => {
+              const odgovorKey = `${odgovor.vprasanje}-${stevilka.stevilka}`;
+              allAnswers[odgovorKey] = odgovor.odgovor;
             });
-            
-            setAnswers(allAnswers);
-          } else {
-            setAnswers({});
-          }
+          });
+          
+          setAnswers(allAnswers);
         }
       } catch (err) {
         setError('Napaka pri nalaganju podatkov: ' + (err instanceof Error ? err.message : String(err)));

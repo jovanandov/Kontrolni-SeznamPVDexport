@@ -46,6 +46,7 @@
 - [x] Implementacija avtorizacije
 - [x] Implementacija uporabniških pravic in vlog
 - [x] Upravljanje uporabnikov (admin, moderator, uporabnik)
+- [x] Popravki in izboljšave (hash: 5f6a8d0)
 
 # Seznam potrebnih implementacij
 
@@ -402,3 +403,5 @@ Zadnji commit: 78b9873 (Dodana batch_create metoda za shranjevanje več odgovoro
 - [ ] Možnost izbire, katere podatke uvoziti
 - [ ] Optimizacija uvoza za velike projekte
 - [ ] Dodajanje metapodatkov pri uvozu (datum uvoza, uporabnik, itd.)
+
+Zadnji commit:  5f6a8d0 
