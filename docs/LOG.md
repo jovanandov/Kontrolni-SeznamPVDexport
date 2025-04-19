@@ -111,6 +111,35 @@ Performing system checks...
 - Uspešno testiran izvoz projekta z vsemi povezanimi podatki
 - Naslednji korak: Implementacija uvoza projektov iz JSON datoteke
 
+## 19.4.2025 - Izboljšave PDF izvoza in stabilizacija funkcionalnosti
+
+Commit: 32833a8
+
+### Dodano
+- Izboljšan izgled PDF izvoza:
+  - Strukturirana glava dokumenta s podatki projekta
+  - Optimizirana postavitev tabel in besedila
+  - Dodana polja za podpis in osebne podatke
+  - Izboljšana berljivost z ustreznimi razmiki in stili
+  - Podpora slovenskim znakom z DejaVu pisavo
+
+### Popravljeno
+- Optimizirana velikost robov dokumenta
+- Izboljšana postavitev tabel z odgovori
+- Dodani razmiki med elementi
+- Konsistentna uporaba stilov in pisav
+
+### Tehnične podrobnosti
+- Dodan DejaVuSans.ttf za podporo slovenskim znakom
+- Optimizirani parametri za generiranje PDF-ja
+- Izboljšano oblikovanje tabel in besedila
+- Dodana polja za podpis in osebne podatke
+
+### Status
+- Vse osnovne funkcionalnosti delujejo stabilno
+- PDF izvoz je zdaj popolnoma funkcionalen in lepo oblikovan
+- Aplikacija je pripravljena za produkcijsko uporabo
+
 ## 2024-04-19
 - [FEATURE] Implementirana funkcionalnost izvoza/uoza projektov v JSON formatu
 - [FIX] Odstranjeno preverjanje starosti serijskih številk pri nalaganju odgovorov

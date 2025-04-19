@@ -861,3 +861,31 @@ Aplikacija omogoča izvoz in uvoz projektov v JSON formatu. To je uporabno za:
   - Serijskimi številkami
   - Segmenti in vprašanji
   - Odgovori na vprašanja
+
+## Funkcionalnosti
+
+### Izvoz podatkov
+- **XLSX izvoz**: Izvoz vseh odgovorov v Excel format s strukturirano postavitvijo
+- **PDF izvoz**: Profesionalno oblikovan izvoz v PDF format
+  - Strukturirana glava dokumenta s podatki projekta
+  - Polja za podpis in osebne podatke
+  - Pregledne tabele z odgovori
+  - Podpora slovenskim znakom
+  - Optimizirana postavitev in berljivost
+
+## Status projekta
+Verzija: 1.0.0
+Commit: 32833a8
+
+### Stanje funkcionalnosti
+- [x] Prijava in registracija uporabnikov
+- [x] Upravljanje projektov
+- [x] Vnos in urejanje odgovorov
+- [x] Izvoz v XLSX format
+- [x] Izvoz v PDF format
+- [x] Uvoz/izvoz projektov (JSON)
+- [x] Podpora slovenskim znakom
+- [x] Optimizirana uporabniška izkušnja
+
+### Pripravljeno za produkcijo
+Aplikacija je uspešno zaključena in pripravljena za produkcijsko uporabo. Vse osnovne funkcionalnosti delujejo stabilno in so temeljito testirane.
