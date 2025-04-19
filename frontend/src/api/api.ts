@@ -406,6 +406,13 @@ export const exportToXlsx = async (projektId: string): Promise<Blob> => {
   return response.data;
 };
 
+export const exportToPdf = async (projektId: string): Promise<Blob> => {
+  const response = await axiosInstance.get(`/projekti/${projektId}/export-pdf/`, {
+    responseType: 'blob'
+  });
+  return response.data;
+};
+
 // Uvoz in izvoz projektov
 export const exportProjectsToJson = async (projektId: string): Promise<Blob> => {
   const response = await axiosInstance.get(`/projekti/${projektId}/export-archive/`, {

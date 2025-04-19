@@ -24,6 +24,19 @@ from django.db import transaction
 import json
 from django.utils import timezone
 from django.db.models import Q
+import openpyxl.styles
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib import colors
+import os
+
+# Registracija pisave DejaVu, ki podpira slovenske znake
+FONT_PATH = os.path.join(os.path.dirname(__file__), 'fonts', 'DejaVuSans.ttf')
+pdfmetrics.registerFont(TTFont('DejaVu', FONT_PATH))
 
 # Create your views here.
 
@@ -471,97 +484,100 @@ class ProjektViewSet(viewsets.ModelViewSet):
             excel_file = io.BytesIO()
             writer = pd.ExcelWriter(excel_file, engine='openpyxl')
 
-            # 5. Pripravi podatke
+            # 5. Pripravi podatke za glavo
+            header_data = [
+                ['Kontrolni seznam', '', '', '', ''],
+                ['', '', '', '', ''],
+                ['Projekt', f"{projekt.id} - {projekt_tip.tip.naziv}", '', '', ''],
+                ['Osebna številka', projekt.osebna_stevilka, '', 'Ime in priimek', ''],
+                ['Datum', projekt.datum.strftime('%Y-%m-%d'), '', 'Podpis', ''],
+                ['Število ponovitev', projekt_tip.stevilo_ponovitev, '', '', ''],
+                ['', '', '', '', '']
+            ]
+
+            # 6. Pripravi podatke za vsako serijsko številko
             data = []
             
-            # Glava dokumenta
-            header = {
-                'Projekt': f"{projekt.id} - {projekt_tip.tip.naziv}",
-                'Datum': projekt.datum,
-                'Osebna številka': projekt.osebna_stevilka,
-                'Število ponovitev': projekt_tip.stevilo_ponovitev
-            }
-
             # Za vsako serijsko številko
             for st in serijske_stevilke:
-                # Dodaj serijsko številko
-                data.append({
-                    'Serijska številka': st.stevilka,
-                    'Vprašanje': '',
-                    'Odgovor': '',
-                    'Datum odgovora': '',
-                    'Segment': ''
-                })
+                # Dodaj serijsko številko kot naslov sekcije
+                data.append(['', '', '', '', ''])
+                data.append([f'Serijska številka: {st.stevilka}', '', '', '', ''])
+                data.append(['Segment', 'Vprašanje', 'Odgovor', 'Datum odgovora', ''])
 
                 # Za vsak segment
                 for segment in segmenti:
-                    # Dodaj ime segmenta
-                    data.append({
-                        'Serijska številka': '',
-                        'Vprašanje': '',
-                        'Odgovor': '',
-                        'Datum odgovora': '',
-                        'Segment': segment.naziv
-                    })
-
-                    # Dodaj vprašanja in odgovore
+                    current_segment = None
+                    
+                    # Za vsako vprašanje v segmentu
                     for vprasanje in Vprasanje.objects.filter(segment=segment):
                         odgovor = Odgovor.objects.filter(
                             vprasanje=vprasanje,
                             serijska_stevilka=st
                         ).first()
 
-                        data.append({
-                            'Serijska številka': '',
-                            'Vprašanje': vprasanje.vprasanje,
-                            'Odgovor': odgovor.odgovor if odgovor else '',
-                            'Datum odgovora': odgovor.created_at.strftime('%Y-%m-%d %H:%M:%S') if odgovor else '',
-                            'Segment': ''
-                        })
+                        # Dodaj segment samo prvič ko se pojavi
+                        segment_naziv = segment.naziv if current_segment != segment.naziv else ''
+                        current_segment = segment.naziv
 
-                # Dodaj prazno vrstico med serijskimi številkami
-                data.append({
-                    'Serijska številka': '',
-                    'Vprašanje': '',
-                    'Odgovor': '',
-                    'Datum odgovora': '',
-                    'Segment': ''
-                })
+                        data.append([
+                            segment_naziv,
+                            vprasanje.vprasanje,
+                            odgovor.odgovor if odgovor else '',
+                            odgovor.created_at.strftime('%Y-%m-%d %H:%M:%S') if odgovor else '',
+                            ''
+                        ])
 
-            # 6. Ustvari DataFrame in zapiši v Excel
-            df = pd.DataFrame(data)
+            # 7. Ustvari DataFrame in zapiši v Excel
+            header_df = pd.DataFrame(header_data)
+            data_df = pd.DataFrame(data)
 
-            # Dodaj glavo kot prvo vrstico
-            header_df = pd.DataFrame([header])
-            header_df.to_excel(writer, sheet_name='Kontrolni seznam', index=False)
+            # Zapiši podatke v Excel
+            header_df.to_excel(writer, sheet_name='Kontrolni seznam', index=False, header=False)
+            data_df.to_excel(writer, sheet_name='Kontrolni seznam', startrow=len(header_data), index=False, header=False)
 
-            # Dodaj prazno vrstico
-            pd.DataFrame().to_excel(writer, sheet_name='Kontrolni seznam', startrow=2, index=False)
-
-            # Dodaj podatke
-            df.to_excel(writer, sheet_name='Kontrolni seznam', startrow=3, index=False)
-
-            # Prilagodi širino stolpcev
+            # 8. Oblikovanje
             worksheet = writer.sheets['Kontrolni seznam']
-            for idx, col in enumerate(df.columns):
-                max_length = max(
-                    df[col].astype(str).apply(len).max(),
-                    len(str(col))
-                )
-                worksheet.column_dimensions[chr(65 + idx)].width = max_length + 2
+            
+            # Nastavi širino stolpcev
+            worksheet.column_dimensions['A'].width = 25  # Segment
+            worksheet.column_dimensions['B'].width = 40  # Vprašanje
+            worksheet.column_dimensions['C'].width = 15  # Odgovor
+            worksheet.column_dimensions['D'].width = 20  # Datum odgovora
+            worksheet.column_dimensions['E'].width = 15  # Dodatni stolpec
+            
+            # Oblikuj naslov
+            cell = worksheet['A1']
+            cell.font = openpyxl.styles.Font(size=14, bold=True)
+            
+            # Oblikuj glavo
+            for row in range(3, 7):
+                for col in ['A', 'B', 'D']:
+                    cell = worksheet[f'{col}{row}']
+                    cell.font = openpyxl.styles.Font(bold=True)
+            
+            # Oblikuj sekcije serijskih številk
+            row_num = len(header_data) + 1
+            while row_num < worksheet.max_row:
+                if worksheet[f'A{row_num}'].value and 'Serijska številka' in str(worksheet[f'A{row_num}'].value):
+                    for col in ['A', 'B', 'C', 'D']:
+                        cell = worksheet[f'{col}{row_num}']
+                        cell.font = openpyxl.styles.Font(bold=True)
+                        cell.fill = openpyxl.styles.PatternFill(start_color='E0E0E0', end_color='E0E0E0', fill_type='solid')
+                row_num += 1
 
             # Shrani Excel
             writer.close()
             excel_file.seek(0)
 
-            # 7. Pripravi response
+            # 9. Pripravi response
             response = HttpResponse(
                 excel_file.read(),
                 content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             )
 
             # Ustvari ime datoteke
-            filename = f"Projekt_{projekt.id}_{projekt_tip.tip.naziv}_{projekt.datum}.xlsx"
+            filename = f"projekt_{projekt.id}_odgovori.xlsx"
             filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.'))
 
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -663,6 +679,177 @@ class ProjektViewSet(viewsets.ModelViewSet):
             import traceback
             print(traceback.format_exc())
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['GET'], url_path='export-pdf')
+    def export_pdf(self, request, pk=None):
+        """Izvozi odgovore projekta v PDF format."""
+        try:
+            # 1. Pridobi projekt in njegove podatke
+            projekt = self.get_object()
+            projekt_tip = projekt.projekt_tipi.first()
+            if not projekt_tip:
+                return Response({'error': 'Projekt nima določenega tipa'}, status=400)
+
+            # 2. Pridobi serijske številke
+            serijske_stevilke = SerijskaStevilka.objects.filter(projekt=projekt)
+            if not serijske_stevilke.exists():
+                return Response({'error': 'Projekt nima serijskih številk'}, status=400)
+
+            # 3. Pridobi segmente
+            segmenti = Segment.objects.filter(tip_id=projekt_tip.tip.id)
+            if not segmenti.exists():
+                return Response({'error': 'Ni najdenih segmentov za ta tip projekta'}, status=400)
+
+            # 4. Pripravi PDF
+            response = HttpResponse(content_type='application/pdf')
+            filename = f"projekt_{projekt.id}_odgovori.pdf"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+            # Ustvari PDF dokument
+            doc = SimpleDocTemplate(
+                response,
+                pagesize=A4,
+                rightMargin=30,
+                leftMargin=30,
+                topMargin=30,
+                bottomMargin=30
+            )
+
+            # Pripravi stile
+            styles = getSampleStyleSheet()
+            styles.add(ParagraphStyle(
+                name='NaslovSlovenski',
+                fontName='DejaVu',
+                fontSize=16,
+                spaceAfter=20,
+                alignment=1,  # Center
+                leading=20
+            ))
+            styles.add(ParagraphStyle(
+                name='PodnaslovSlovenski',
+                fontName='DejaVu',
+                fontSize=12,
+                spaceAfter=10,
+                alignment=1,  # Center
+                leading=16
+            ))
+            styles.add(ParagraphStyle(
+                name='NormalSlovenski',
+                fontName='DejaVu',
+                fontSize=10,
+                spaceAfter=5,
+                leading=14
+            ))
+            styles.add(ParagraphStyle(
+                name='TabelaGlava',
+                fontName='DejaVu',
+                fontSize=9,
+                textColor=colors.white,
+                alignment=1,  # Center
+                leading=12
+            ))
+            styles.add(ParagraphStyle(
+                name='TabelaVsebina',
+                fontName='DejaVu',
+                fontSize=9,
+                alignment=0,  # Left
+                leading=12
+            ))
+
+            # Seznam elementov za PDF
+            elements = []
+
+            # Dodaj naslov in podatke o projektu
+            elements.append(Paragraph('Kontrolni seznam', styles['NaslovSlovenski']))
+            elements.append(Paragraph(f'Projekt: {projekt.id} - {projekt_tip.tip.naziv}', styles['PodnaslovSlovenski']))
+            
+            # Podatki o projektu v tabeli
+            podatki_projekta = [
+                ['Osebna številka:', projekt.osebna_stevilka, 'Datum:', projekt.datum.strftime("%d.%m.%Y")],
+                ['Število ponovitev:', str(projekt_tip.stevilo_ponovitev), 'Ime in priimek:', '_' * 20],
+                ['', '', 'Podpis:', '_' * 20]
+            ]
+            
+            t_podatki = Table(podatki_projekta, colWidths=[100, 150, 100, 150])
+            t_podatki.setStyle(TableStyle([
+                ('FONT', (0, 0), (-1, -1), 'DejaVu'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('TOPPADDING', (0, 0), (-1, -1), 5),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ]))
+            elements.append(t_podatki)
+            elements.append(Spacer(1, 20))
+
+            # Za vsako serijsko številko
+            for st in serijske_stevilke:
+                elements.append(Paragraph(f'Serijska številka: {st.stevilka}', styles['PodnaslovSlovenski']))
+                
+                # Za vsak segment
+                for segment in segmenti:
+                    vprasanja = Vprasanje.objects.filter(segment=segment)
+                    if not vprasanja.exists():
+                        continue
+
+                    # Podatki za tabelo
+                    table_data = [[
+                        Paragraph('Segment', styles['TabelaGlava']),
+                        Paragraph('Vprašanje', styles['TabelaGlava']),
+                        Paragraph('Odgovor', styles['TabelaGlava']),
+                        Paragraph('Datum odgovora', styles['TabelaGlava'])
+                    ]]
+                    
+                    current_segment = None
+                    for vprasanje in vprasanja:
+                        odgovor = Odgovor.objects.filter(
+                            vprasanje=vprasanje,
+                            serijska_stevilka=st
+                        ).first()
+
+                        # Dodaj segment samo prvič ko se pojavi
+                        segment_naziv = segment.naziv if current_segment != segment.naziv else ''
+                        current_segment = segment.naziv
+
+                        table_data.append([
+                            Paragraph(segment_naziv, styles['TabelaVsebina']),
+                            Paragraph(vprasanje.vprasanje, styles['TabelaVsebina']),
+                            Paragraph(odgovor.odgovor if odgovor else '', styles['TabelaVsebina']),
+                            Paragraph(odgovor.created_at.strftime('%d.%m.%Y %H:%M') if odgovor else '', styles['TabelaVsebina'])
+                        ])
+
+                    # Ustvari tabelo
+                    if len(table_data) > 1:  # Če imamo podatke poleg glave
+                        t = Table(table_data, colWidths=[100, 220, 80, 100])
+                        t.setStyle(TableStyle([
+                            ('FONT', (0, 0), (-1, -1), 'DejaVu'),
+                            ('FONTSIZE', (0, 0), (-1, -1), 9),
+                            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+                            ('TOPPADDING', (0, 0), (-1, -1), 5),
+                            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                            ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+                        ]))
+                        elements.append(t)
+                        elements.append(Spacer(1, 15))
+
+                elements.append(Spacer(1, 20))
+
+            # Generiraj PDF
+            doc.build(elements)
+            return response
+
+        except Exception as e:
+            print(f"Napaka pri izvozu PDF: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            return Response({'error': str(e)}, status=500)
 
 class SegmentViewSet(viewsets.ModelViewSet):
     queryset = Segment.objects.all()

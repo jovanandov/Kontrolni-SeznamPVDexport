@@ -832,8 +832,6 @@ Sistem omogoča dva načina vnosa odgovorov:
 - Vsak tip ima svoje število ponovitev
 - Sistem avtomatsko generira ustrezno število vnosnih polj
 
----
-
 ## Izvoz in uvoz projektov
 
 ### Uvoz/Izvoz projektov
@@ -862,4 +860,4 @@ Aplikacija omogoča izvoz in uvoz projektov v JSON formatu. To je uporabno za:
   - Tipi projektov
   - Serijskimi številkami
   - Segmenti in vprašanji
-  - Odgovori na vprašanja 
+  - Odgovori na vprašanja

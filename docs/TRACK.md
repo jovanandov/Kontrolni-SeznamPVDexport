@@ -236,3 +236,6 @@ Trenutno stanje:
 - Dodan timestamp zadnje spremembe pri izvozu
 - Obdržan originalni datum kreiranja projekta pri uvozu
 - Popravljena logika nalaganja odgovorov za vse serijske številke
+
+
+commit hash fclc5a3

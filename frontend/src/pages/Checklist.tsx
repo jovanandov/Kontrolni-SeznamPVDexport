@@ -38,6 +38,7 @@ import {
   SerijskaStevilka,
   getSerijskeStevilke,
   exportToXlsx,
+  exportToPdf,
   createProjekt,
   saveOdgovori,
 } from '../api/api';
@@ -46,6 +47,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import SaveIcon from '@mui/icons-material/Save';
 import MenuIcon from '@mui/icons-material/Menu';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import axios from 'axios';
 
 const Checklist: React.FC = () => {
@@ -277,6 +279,24 @@ const Checklist: React.FC = () => {
     } catch (error) {
       console.error('Napaka pri izvozu:', error);
       toast.error('Napaka pri izvozu datoteke');
+    }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      const blob = await exportToPdf(projektId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `projekt_${projektId}_odgovori.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('PDF izvoz uspešno zaključen');
+    } catch (error) {
+      console.error('Napaka pri izvozu PDF:', error);
+      toast.error('Napaka pri izvozu PDF datoteke');
     }
   };
 
@@ -615,6 +635,11 @@ const Checklist: React.FC = () => {
           icon={<FileDownloadIcon />}
           tooltipTitle="Izvozi v Excel"
           onClick={handleExportXlsx}
+        />
+        <SpeedDialAction
+          icon={<PictureAsPdfIcon />}
+          tooltipTitle="Izvozi v PDF"
+          onClick={handleExportPdf}
         />
       </SpeedDial>
     </Box>

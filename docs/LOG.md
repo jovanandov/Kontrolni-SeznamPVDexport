@@ -116,4 +116,4 @@ Performing system checks...
 - [FIX] Odstranjeno preverjanje starosti serijskih številk pri nalaganju odgovorov
 - [FEATURE] Dodan timestamp zadnje spremembe pri izvozu
 - [FEATURE] Obdržan originalni datum kreiranja projekta pri uvozu
-- [FIX] Popravljena logika nalaganja odgovorov za vse serijske številke 
+- [FIX] Popravljena logika nalaganja odgovorov za vse serijske številke
